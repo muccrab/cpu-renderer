@@ -1,7 +1,12 @@
 ﻿global using ElementBuffer = int[];
 using CPU_Doom;
 using CPU_Doom.Buffers;
+using CPU_Doom.Interfaces;
 using CPU_Doom.Types;
+
+using Demo.Shaders;
+using OpenTK.Mathematics;
+using System.Reflection;
 
 namespace Demo
 {
@@ -9,6 +14,13 @@ namespace Demo
     {
         static void Main(string[] args)
         {
+            /*
+            BasicFragmentShader fragmentShader = new BasicFragmentShader();
+            Console.WriteLine(fragmentShader.GetType().GetField("DissableFloatConvertion", BindingFlags.Static | BindingFlags.Public).GetValue(null).ToString());
+            IFragmentShader<Vector4> inter = fragmentShader;
+            Console.WriteLine(inter.GetType().GetField("DissableFloatConvertion", BindingFlags.Static | BindingFlags.Public).GetValue(null).ToString());
+            */
+
             Window3D window = new Window3D(320, 200, "Doom on CPU");
             Start(window);
             window.Update((context) =>

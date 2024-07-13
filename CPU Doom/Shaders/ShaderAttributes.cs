@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace CPU_Doom.Shaders
 {
-    [AttributeUsage(AttributeTargets.Property)]
+    [AttributeUsage(AttributeTargets.Field)]
     public abstract class BasicShaderAttribute : Attribute
     {
         public string Name { get; }

@@ -8,9 +8,13 @@ namespace CPU_Doom.Interfaces
         public void Execute();
     }
 
-    public interface IFragmentShader<T> where T : struct
+    public interface IFragmentShader {
+        public const bool DissableFloatConvertion = false;
+        public void Execute(); 
+    }
+
+    public interface IFragmentShader<T> : IFragmentShader where T : struct
     {
-        T Color { get; }
-        public void Execute();
+        public T Color { get; }
     }
 }
