@@ -15,19 +15,28 @@ namespace Demo.Shaders
     {
         public Vector4 Position { get; private set; }
 
+        [UniformAttribute("cameraPos")]
+        public static Vector4d uniCameraPos;
+        [UniformAttribute("MVP")]
+        public static Vector4d uniMVP;
+
+
         [InputAttribute("in_position")]
         public Vector4 inPosition;
         [InputAttribute("in_color")]
         public Vector4 inColor;
 
 
-        [OutputAttribute("out_color")]
-        public Vector4 outColor;
+        [OutputAttribute("normal")]
+        public Vector3 outNormal;
+
+        [OutputAttribute("intensity")]
+        public float outIntesity;
 
         public void Execute()
         {
-            Position = inPosition;
-            outColor = inColor;
+            //Position = inPosition;
+            //outColor = inColor;
         }
     }
 }

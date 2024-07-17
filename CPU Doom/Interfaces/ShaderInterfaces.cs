@@ -2,19 +2,17 @@
 
 namespace CPU_Doom.Interfaces
 {
-    public interface IVertexShader
+    public interface IShader { }
+
+    public interface IVertexShader : IShader
     {
         public Vector4 Position { get; }
+
         public void Execute();
     }
 
-    public interface IFragmentShader {
+    public interface IFragmentShader : IShader {
         public const bool DissableFloatConvertion = false;
-        public void Execute(); 
-    }
-
-    public interface IFragmentShader<T> : IFragmentShader where T : struct
-    {
-        public T Color { get; }
+        public void Execute();
     }
 }

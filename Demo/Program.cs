@@ -1,6 +1,7 @@
 ﻿global using ElementBuffer = int[];
 using CPU_Doom;
 using CPU_Doom.Buffers;
+using CPU_Doom.Shaders;
 using CPU_Doom.Interfaces;
 using CPU_Doom.Types;
 
@@ -61,6 +62,8 @@ namespace Demo
             VertexBuffer vbo = new VertexBuffer(stride, vertices);
             _vao = new VertexArrayObject(indeces, vbo);
 
+            ShaderProgram program = new ShaderProgram(typeof(BasicVertexShader), typeof(BasicFragmentShader));
+            Console.WriteLine("Shaders Linked");
         }
 
 

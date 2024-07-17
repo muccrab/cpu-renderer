@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace CPU_Doom.Shaders
 {
-    [AttributeUsage(AttributeTargets.Field)]
+    [AttributeUsage(AttributeTargets.Field, AllowMultiple = false)]
     public abstract class BasicShaderAttribute : Attribute
     {
         public string Name { get; }
@@ -19,7 +19,11 @@ namespace CPU_Doom.Shaders
 
     public class InputAttribute : BasicShaderAttribute 
     {
-        public InputAttribute(string name) : base(name) { }
+        public int Location { get; set; } // If location = -1, then it will be automatically set based on position in shader. In Fragment shader position is irrelevant.
+        public InputAttribute(string name, int location = -1) : base(name) 
+        {
+            Location = location;
+        }
     }
 
     public class OutputAttribute : BasicShaderAttribute
@@ -27,9 +31,11 @@ namespace CPU_Doom.Shaders
         public OutputAttribute(string name) : base(name) { }
     }
 
+
     public class UniformAttribute : BasicShaderAttribute
     {
         public UniformAttribute(string name) : base(name) { }
+
     }
 
 
