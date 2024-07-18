@@ -12,8 +12,9 @@ namespace CPU_Doom.Shaders
     {
         Type _vertexType, _fragmentType;
 
-
-        Dictionary<string, ShaderVariable> _variables = new Dictionary<string, ShaderVariable>();
+        List<FieldInfo> _vertexInputs = new List<FieldInfo>();
+        Dictionary<string, ShaderVariable> _linkedVariables = new Dictionary<string, ShaderVariable>(); // Dictionary for vertexOut/fragmentIn.
+        FieldInfo _fragmentOutput;
         Dictionary<string, ShaderUniform> _uniforms = new Dictionary<string, ShaderUniform>();
 
         public ShaderProgram(Type vertexType, Type fragmentType)
@@ -28,35 +29,56 @@ namespace CPU_Doom.Shaders
 
         public void Draw(FrameBuffer frameBuffer, VertexArrayObject vertexArray)
         {
+            foreach (var vertex in vertexArray.Vertices) 
+            {
 
+            }
         }
 
 
         private void LinkShaders() 
         {
-            #region Variables
+            LinkVariables();
+            LinkUniforms();
+        }
+
+        private void LinkVariables()
+        {
+            // Get Input and Output Variables
             GetInputOutputFields(_vertexType, out IEnumerable<FieldInfo> vertexInputs, out IEnumerable<FieldInfo> vertexOutputs);
             GetInputOutputFields(_fragmentType, out IEnumerable<FieldInfo> fragmentInputs, out IEnumerable<FieldInfo> fragmentOutputs);
 
-            // TODO: check fragments outputs....only one
             if (!fragmentOutputs.HasExactlyOneElement()) return; // TODO: throw an exception. + Logger
 
+            // Process Vertex Inputs
 
-
-            foreach (FieldInfo field in vertexInputs) 
+            SortedDictionary<int, FieldInfo> specifiedFields = new SortedDictionary<int, FieldInfo>();
+            Queue<FieldInfo> unspecifiedFields = new Queue<FieldInfo>();
+            foreach (FieldInfo field in vertexInputs)
             {
                 var attribute = field.GetCustomAttribute<InputAttribute>();
                 if (attribute == null) continue; //This check is pointless, but it needs to be here so C# compiler won't scream at me with warnings
-                var shaderVar = new ShaderVariable();
-                shaderVar.vertexField = field;
-                shaderVar.vertexLocation = attribute.Location; // TODO: Automatize Locations!!!!!
-                shaderVar.vertexType = SHADERVARTYPE.IN;
-                _variables.Add(attribute.Name, shaderVar);
+
+                if(attribute.Location == -1) unspecifiedFields.Enqueue(field);
+                else
+                {
+                    if (specifiedFields.ContainsKey(attribute.Location)) return; // TODO: Exception + Logger
+                    specifiedFields.Add(attribute.Location, field);
+                }
+            }
+            _vertexInputs = specifiedFields.Values.ToList();
+            int unspecifiedCount = unspecifiedFields.Count;
+            for (int i = 0; i < unspecifiedCount; i++)
+            {
+                FieldInfo input = unspecifiedFields.Dequeue();
+                _vertexInputs.Add(input);
             }
 
+            
+            // Join Vertex Outputs and Fragment Inputs.
             // Inner Join of Vertex Outputs and Fragment Inputs
-            var verOutFragInTable = from verOut in vertexOutputs 
-                                        join fragIn in fragmentInputs on verOut.GetCustomAttribute<OutputAttribute>()?.Name equals fragIn.GetCustomAttribute<InputAttribute>()?.Name 
+            var verOutFragInTable = from verOut in vertexOutputs
+                                    join fragIn in fragmentInputs on verOut.GetCustomAttribute<OutputAttribute>()?.Name equals fragIn.GetCustomAttribute<InputAttribute>()?.Name
                                     select (verOut, fragIn);
 
             foreach (var verInFragOut in verOutFragInTable)
@@ -66,40 +88,25 @@ namespace CPU_Doom.Shaders
 
                 var verOutAt = verInFragOut.verOut.GetCustomAttribute<OutputAttribute>();
                 var fragInAt = verInFragOut.fragIn.GetCustomAttribute<InputAttribute>();
-                if (verOutAt ==  null || fragInAt == null) continue; //Again pointless, but I won't get warnings
-                
+                if (verOutAt == null || fragInAt == null) continue; //Again pointless, but I won't get warnings
                 if (!verOut.FieldType.IsAssignableTo(fragIn.FieldType)) continue; // TODO: Logger
+
                 var shaderVar = new ShaderVariable();
-                shaderVar.vertexField = verOut;
-                shaderVar.vertexType = SHADERVARTYPE.OUT;
-                shaderVar.fragmentField = fragIn;
-                shaderVar.fragmentType = SHADERVARTYPE.IN;
-                if (_variables.ContainsKey(verOutAt.Name)) continue; // Logger + Consider exception.
-                _variables[verOutAt.Name] = shaderVar;
+                shaderVar.VertexField = verOut;
+                shaderVar.FragmentField = fragIn;
+                
+                if (_linkedVariables.ContainsKey(verOutAt.Name)) continue; // Logger + Consider exception.
+                _linkedVariables[verOutAt.Name] = shaderVar;
             }
 
+            // Process Fragment Output
             var fragOut = fragmentOutputs.First(); // I do not need to catch exception since at the start of the method I'm checking if it has only one element
-            var fragOutAt = fragOut.GetCustomAttribute<OutputAttribute>();
-            if (fragOutAt == null) return; // TODO: throw an exception. + Logger
-            if (_variables.ContainsKey(fragOutAt.Name))
-            {
-                if (_variables[fragOutAt.Name].fragmentField == null)
-                {
-                    _variables[fragOutAt.Name].fragmentField = fragOut;
-                    _variables[fragOutAt.Name].fragmentType = SHADERVARTYPE.OUT;
-                }
-                else return; // TODO: throw an exception. + Logger
-            }
-            else
-            {
-                var shaderVar = new ShaderVariable();
-                shaderVar.fragmentField = fragOut;
-                shaderVar.fragmentType = SHADERVARTYPE.OUT;
-                _variables.Add(fragOutAt.Name, shaderVar);
-            }
-            #endregion
-            #region Uniforms
+            _fragmentOutput = fragOut;
+        }
 
+
+        private void LinkUniforms()
+        {
             GetUniforms(_vertexType, out var vertexUniforms);
             GetUniforms(_fragmentType, out var fragmentUniforms);
 
@@ -117,13 +124,12 @@ namespace CPU_Doom.Shaders
                 ShaderUniform? linkedUniform = ShaderUniform.LinkUniform(uniform.Item1, uniform.Item2);
                 if (linkedUniform == null) continue; // TODO: Logger
                 var unAt = uniform.Item1?.GetCustomAttribute<UniformAttribute>();
-                if (unAt == null)   unAt = uniform.Item2?.GetCustomAttribute<UniformAttribute>();
-                if (unAt == null)    continue; // TODO: Logger
+                if (unAt == null) unAt = uniform.Item2?.GetCustomAttribute<UniformAttribute>();
+                if (unAt == null) continue; // TODO: Logger
                 _uniforms.Add(unAt.Name, linkedUniform);
             }
-            #endregion
-            // TODO: finish this method
         }
+
 
         private void GetInputOutputFields(Type type, out IEnumerable<FieldInfo> inputs, out IEnumerable<FieldInfo> outputs)
         {
@@ -147,17 +153,10 @@ namespace CPU_Doom.Shaders
 
         private class ShaderVariable
         {
-            public SHADERVARTYPE vertexType;
-            public SHADERVARTYPE fragmentType;
-            public int vertexLocation = -1;
-            public FieldInfo? vertexField;
-            public FieldInfo? fragmentField;
+            public FieldInfo? VertexField { get; set; }
+            public FieldInfo? FragmentField { get; set; }
         }
 
-        private enum SHADERVARTYPE
-        {
-            IN, OUT, UNDEFINED
-        }
 
         abstract class ShaderUniform
         {

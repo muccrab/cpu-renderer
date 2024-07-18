@@ -27,6 +27,7 @@ namespace Demo.Shaders
         public Vector4 inColor;
 
 
+
         [OutputAttribute("normal")]
         public Vector3 outNormal;
 

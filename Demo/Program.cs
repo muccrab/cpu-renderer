@@ -59,7 +59,7 @@ namespace Demo
             stride.AddEntry(PIXELTYPE.FLOAT, 2); // Vertex Position
             stride.AddEntry(PIXELTYPE.FLOAT, 3); // Vertex Color
 
-            VertexBuffer vbo = new VertexBuffer(stride, vertices);
+            VertexBuffer vbo = new VertexBuffer(stride, vertices, 3);
             _vao = new VertexArrayObject(indeces, vbo);
 
             ShaderProgram program = new ShaderProgram(typeof(BasicVertexShader), typeof(BasicFragmentShader));

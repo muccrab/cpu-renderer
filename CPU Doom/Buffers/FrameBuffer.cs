@@ -15,28 +15,28 @@ using OpenTK.Mathematics;
 namespace CPU_Doom.Buffers
 {
 
-
-
-    public class FrameBuffer : IEnumerable<byte[]>
+    public class FrameBuffer : SizedSetEnum<byte[]>
     {
-        public int Size { get; private set; }
+        public override int Size => _size;
         public byte[] Data => _data;
         public FrameBuffer(int size, PIXELTYPE type)
         {
-            Size = size;
+            _size = size;
             _typeLn = (int)type;
             _data = new byte[size * _typeLn];
         }
 
-        public byte[] this[int key]
+        public override byte[] this[int key]
         {
             get => _data[(key * _typeLn).._typeLn];
-            set {
-                int minLn = Math.Min(_typeLn, value.Length);
-                for (int i = 0; i < minLn; ++i)
-                {
-                    _data[(key * _typeLn) + i] = value[i];
-                }
+        }
+
+        public override void Setter(int key, byte[] value)
+        {
+            int minLn = Math.Min(_typeLn, value.Length);
+            for (int i = 0; i < minLn; ++i)
+            {
+                _data[(key * _typeLn) + i] = value[i];
             }
         }
 
@@ -67,47 +67,9 @@ namespace CPU_Doom.Buffers
             });
         }
 
-
         private int _typeLn;
         private byte[] _data;
-
-
-        public IEnumerator<byte[]> GetEnumerator() => new FrameBuffer_Enumerator(this);
-        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-       
-
-        class FrameBuffer_Enumerator : IEnumerator<byte[]>
-        {
-            public FrameBuffer_Enumerator(FrameBuffer buffer)
-            {
-                _buffer = buffer;
-            }
-
-            public byte[] Current { get {
-                    if (_pos == -1) throw new InvalidOperationException("Enumerator is uninitialized");
-                    if (_pos >= _buffer.Size) throw new InvalidOperationException("Enumerator has gone through the collection");
-                    return _buffer[_pos];
-                } }
-
-            object IEnumerator.Current => Current;
-
-            public void Dispose() {}
-
-            public bool MoveNext()
-            {
-                _pos++;
-                return _pos < _buffer.Size;
-            }
-
-            public void Reset()
-            {
-                _pos = -1;
-            }
-
-            private FrameBuffer _buffer;
-            private int _pos = -1;
-        }
-
+        private int _size;
 
     }
 }
