@@ -1,14 +1,24 @@
 ﻿
 using CPU_Doom.Buffers;
 using CPU_Doom.Interfaces;
+using CPU_Doom.Types;
 using SFML.System;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using OpenTK.Mathematics;
+using System.Data;
+using System.Runtime.Serialization;
 
 namespace CPU_Doom.Shaders
 {
 
+    public abstract class ShaderProgram
+    {
+        public abstract void Draw(FrameBuffer2d frameBuffer, VertexArrayObject vertexArray);
+    }
 
-    public class ShaderProgram //Connect Vertex and Fragment Shaders.
+
+    public class ShaderProgram<TVER, TFRAG> : ShaderProgram where TVER : IVertexShader, new() where TFRAG : IFragmentShader, new()//Connect Vertex and Fragment Shaders.
     {
         Type _vertexType, _fragmentType;
 
@@ -17,29 +27,268 @@ namespace CPU_Doom.Shaders
         FieldInfo _fragmentOutput;
         Dictionary<string, ShaderUniform> _uniforms = new Dictionary<string, ShaderUniform>();
 
-        public ShaderProgram(Type vertexType, Type fragmentType)
+        public ShaderProgram()
         {
-            if (!vertexType.IsAssignableTo(typeof(IVertexShader)) || !fragmentType.IsAssignableTo(typeof(IFragmentShader))) 
-                throw new ArgumentException("Provided types are not shaders!!! Use IVertexShader and IFragramentShader for your shaders");
-
-            _vertexType = vertexType;
-            _fragmentType = fragmentType;
+            _vertexType = typeof(TVER);
+            _fragmentType = typeof(TFRAG);
             LinkShaders();
+            if (_fragmentOutput == null) throw new ArgumentNullException("Fragment Shader must contain a output."); // Compiller was shouting at me if I did this check elsewhere, so I have it in the constructor.
         }
 
-        public void Draw(FrameBuffer frameBuffer, VertexArrayObject vertexArray)
+        public override void Draw(FrameBuffer2d frameBuffer, VertexArrayObject vertexArray)
         {
-            foreach (var vertex in vertexArray.Vertices) 
+            // Vertex Shader Exxecution
+            int vertexCount = vertexArray.Vertices.Size;
+            TVER[] vertices = new TVER[vertexCount];
+
+            for (int i = 0; i < vertexCount; ++i) 
             {
+                var vertex = vertexArray.Vertices[i];
+                TVER ver = vertices[i] = new TVER();
+                int j = 0;
+                foreach (byte[] vertexAttribute in vertex)
+                {
+                    FieldInfo field = _vertexInputs[j];
+                    field.AssignByteArrayToField(ver, vertexAttribute);
+                    j++;
+                }
+                ver.Execute();
+                ver.Position = ver.Position / ver.Position.W; // Project to 3D space
+            }
+            // Fragment Interpolation
+            Vector2 frameBufferSize = new Vector2(frameBuffer.RowSize, frameBuffer.Size) / 2; // Divide by two here to save computation when converting Clip space to FrameBuffer space
+            for (int i = 0; i < vertexArray.Indices.Length; i+=3) 
+            {
+                TVER A = vertices[i];
+                TVER B = vertices[i + 1];
+                TVER C = vertices[i + 2];
+
+                Vector2 posA = (A.Position.Xy + Vector2.One) * frameBufferSize;
+                Vector2 posB = (B.Position.Xy + Vector2.One) * frameBufferSize;
+                Vector2 posC = (C.Position.Xy + Vector2.One) * frameBufferSize;
+
+                Vector2 w0 = posB - posA;
+                Vector2 w1 = posC - posB;
+                Vector2 w2 = posA - posC;
+                bool backwards = false;
+
+                float triangleArea = MathVec.Vec2Cross(w0, -w1);
+
+                if (MathVec.Vec2Cross(w0, w1) > 0)
+                {
+                    w0 = -w0;
+                    w1 = -w1;
+                    w2 = -w2;
+                    backwards = true;
+                }
+
+                // Calculate Bounding Box of a Triangle.
+                float minX =  MathHelper.Clamp(MathF.Floor(MathVec.Min3(posA.X, posB.X, posC.X)), 0f, frameBuffer.RowSize) + 0.5f;
+                float minY =  MathHelper.Clamp(MathF.Floor(MathVec.Min3(posA.Y, posB.Y, posC.Y)), 0f, frameBuffer.Size) + 0.5f;
+                float maxX =  MathHelper.Clamp(MathF.Ceiling(MathVec.Max3(posA.X, posB.X, posC.X)), 0f, frameBuffer.RowSize);
+                float maxY =  MathHelper.Clamp(MathF.Ceiling(MathVec.Max3(posA.Y, posB.Y, posC.Y)), 0f, frameBuffer.Size);
+
+                // Create reference to data.
+                TriangleData data = new TriangleData()
+                {
+                    posA = posA,
+                    posB = posB,
+                    posC = posC,
+                    AB = w0,
+                    BC = w1,
+                    CA = w2,
+                    backwards = backwards
+                };
+
+                int interX = (int)MathF.Ceiling(maxX - minX);
+                int interY = (int)MathF.Ceiling(maxY - minY);
+                /*
+                ThreadManager manager = new ThreadManagerFor(0, interX * interY, i => {
+                    int iY = i / interX;
+                    int iX = i - interX * iY;
+
+                    float x = minX + iX;
+                    float y = minY + iY;
+
+                    Vector2 point = new Vector2(x, y);
+                    if (IsInsideTriangle(data, point))
+                        frameBuffer[(int)y][(int)x] = (from _ in Enumerable.Range(0, frameBuffer.TypeLength) select (byte)255).ToArray();
+                });
+                manager.Execute();
+                while (manager.Finished) { }
+                */
+                
+                Parallel.For(0, interX * interY, i =>
+                {
+                    int iY = i / interX;
+                    int iX = i - interX * iY;
+
+                    float x = minX + iX;
+                    float y = minY + iY;
+
+                    Vector2 point = new Vector2(x, y);
+                    CrossProducts products = GetCrossProducts(data, point);
+                    if (IsInsideTriangle(products))
+                    {
+                        TFRAG fragmentShader = new TFRAG();
+                        foreach(var verOutFragOut in _linkedVariables.Values)
+                        {
+                            if (verOutFragOut == null) continue;
+
+                            object? valueA = verOutFragOut.VertexField.GetValue(A);
+                            object? valueB = verOutFragOut.VertexField.GetValue(B);
+                            object? valueC = verOutFragOut.VertexField.GetValue(C);
+                            if (valueA == null || valueB == null || valueC == null) continue;
+
+                            bool filtering = verOutFragOut.FileringEnabled;
+
+                            float alpha = -products.cA / triangleArea;
+                            float beta = -products.cB / triangleArea;
+                            float gamma = -products.cC / triangleArea; 
+
+
+                            object fragValue = FilterTriangle(alpha, beta, gamma, valueA, valueB, valueC, ref filtering);
+                            
+                            verOutFragOut.FileringEnabled = filtering;
+
+                            object realFragValue = Convert.ChangeType(fragValue, verOutFragOut.FragmentField.FieldType);
+                            verOutFragOut.FragmentField.SetValue(fragmentShader, realFragValue);
+                        }
+                        fragmentShader.Execute();
+                        object? fragOutput = _fragmentOutput.GetValue(fragmentShader);
+                        if (fragOutput != null)
+                        {
+                            byte[] fragOutArr = PixelTypeConverter.GetBytesFromStruct(fragOutput);
+                            frameBuffer[(int)y][(int)x] = fragOutArr;
+                        }
+                    }
+
+                });
+
+                /*
+                for (int I = 0; I < interX * interY; I++)
+                {
+                    int iY = I / interX;
+                    int iX = I - interX * iY;
+
+                    float x = minX + iX;
+                    float y = minY + iY;
+
+                    Vector2 point = new Vector2(x, y);
+                    CrossProducts products = GetCrossProducts(data, point);
+                    if (IsInsideTriangle(products))
+                    {
+                        TFRAG fragmentShader = new TFRAG();
+                        foreach(var verOutFragOut in _linkedVariables.Values)
+                        {
+                            if (verOutFragOut == null) continue;
+
+                            object? valueA = verOutFragOut.VertexField.GetValue(A);
+                            object? valueB = verOutFragOut.VertexField.GetValue(B);
+                            object? valueC = verOutFragOut.VertexField.GetValue(C);
+                            if (valueA == null || valueB == null || valueC == null) continue;
+
+                            bool filtering = verOutFragOut.FileringEnabled;
+
+                            float alpha = -products.cA / triangleArea;
+                            float beta = -products.cB / triangleArea;
+                            float gamma = -products.cC / triangleArea; 
+
+
+                            object fragValue = FilterTriangle(alpha, beta, gamma, valueA, valueB, valueC, ref filtering);
+                            
+                            verOutFragOut.FileringEnabled = filtering;
+
+                            object realFragValue = Convert.ChangeType(fragValue, verOutFragOut.FragmentField.FieldType);
+                            verOutFragOut.FragmentField.SetValue(fragmentShader, realFragValue);
+                        }
+                        fragmentShader.Execute();
+                        object? fragOutput = _fragmentOutput.GetValue(fragmentShader);
+                        if (fragOutput != null)
+                        {
+                            byte[] fragOutArr = PixelTypeConverter.GetBytesFromStruct(fragOutput);
+                            frameBuffer[(int)y][(int)x] = fragOutArr;
+                        }
+                    }
+                }
+                */
+
+                /*
+                for (float x = minX; x < maxX; x++)
+                {
+                    for (float y = minY; y < maxY; y++) 
+                    {
+                        Vector2 point = new Vector2(x, y);
+                        if (IsInsideTriangle(data, point))
+                            frameBuffer[(int)y][(int)x] = (from _ in Enumerable.Range(0, frameBuffer.TypeLength) select (byte)255).ToArray();
+                    }
+                }*/
 
             }
+            // Fragment Shader Interpolation
+
+
+            // FrameBuffer write
+        }
+
+        private class TriangleData
+        {
+            public Vector2 posA, posB, posC;
+            public Vector2 AB, BC, CA;
+            public bool backwards = false;
+        }
+
+        private struct CrossProducts
+        {
+            public float cA, cB, cC;
+        }
+
+        private CrossProducts GetCrossProducts(TriangleData data, Vector2 point)
+        {
+            Vector2 pA = data.posA - point;
+            Vector2 pB = data.posB - point;
+            Vector2 pC = data.posC - point;
+            if (!data.backwards)
+            {
+                return new CrossProducts
+                {
+                       cA = MathVec.Vec2Cross(pA, data.AB),
+                       cB = MathVec.Vec2Cross(pB, data.BC),
+                       cC = MathVec.Vec2Cross(pC, data.CA) 
+                };
+            }
+            return new CrossProducts
+            {
+                cA = MathVec.Vec2Cross(pA, data.CA),
+                cB = MathVec.Vec2Cross(pB, data.AB),
+                cC = MathVec.Vec2Cross(pC, data.BC)
+            };
+        }
+
+        private bool IsInsideTriangle(CrossProducts products) => products.cA < 0 && products.cB < 0 && products.cC < 0;
+
+        private object FilterTriangle(float coefA, float coefB, float coefC, dynamic a, dynamic b, dynamic c, ref bool supportsFilter) 
+        {
+            if (supportsFilter)
+            {
+                try
+                {
+                    return coefA * a + coefB * b + coefC * c;
+                }
+                catch {
+                    supportsFilter = false;
+                }
+            }
+            if (coefA > MathF.Max(coefB, coefC)) return a;
+            else if (coefB > coefC) return b;
+            else return c;
         }
 
 
         private void LinkShaders() 
         {
             LinkVariables();
-            LinkUniforms();
+            //LinkUniforms();
         }
 
         private void LinkVariables()
@@ -48,7 +297,7 @@ namespace CPU_Doom.Shaders
             GetInputOutputFields(_vertexType, out IEnumerable<FieldInfo> vertexInputs, out IEnumerable<FieldInfo> vertexOutputs);
             GetInputOutputFields(_fragmentType, out IEnumerable<FieldInfo> fragmentInputs, out IEnumerable<FieldInfo> fragmentOutputs);
 
-            if (!fragmentOutputs.HasExactlyOneElement()) return; // TODO: throw an exception. + Logger
+
 
             // Process Vertex Inputs
 
@@ -91,16 +340,16 @@ namespace CPU_Doom.Shaders
                 if (verOutAt == null || fragInAt == null) continue; //Again pointless, but I won't get warnings
                 if (!verOut.FieldType.IsAssignableTo(fragIn.FieldType)) continue; // TODO: Logger
 
-                var shaderVar = new ShaderVariable();
-                shaderVar.VertexField = verOut;
-                shaderVar.FragmentField = fragIn;
+                var shaderVar = new ShaderVariable(verOut, fragIn, SupportsFiltering(verOut.FieldType)); // TODO: Better Filtering check. Add check that 
                 
                 if (_linkedVariables.ContainsKey(verOutAt.Name)) continue; // Logger + Consider exception.
                 _linkedVariables[verOutAt.Name] = shaderVar;
             }
 
             // Process Fragment Output
-            var fragOut = fragmentOutputs.First(); // I do not need to catch exception since at the start of the method I'm checking if it has only one element
+            if (!fragmentOutputs.HasExactlyOneElement()) return; // TODO: throw an exception. + Logger
+            var fragOut = fragmentOutputs.First();
+            if (!fragOut.FieldType.GetCustomAttributes(typeof(SerializableAttribute), true).Any()) return; // TODO: throw an exception. + Logger
             _fragmentOutput = fragOut;
         }
 
@@ -151,10 +400,23 @@ namespace CPU_Doom.Shaders
             );
         }
 
+        private static bool SupportsFiltering(Type type) =>
+            type.GetMethod("op_Multiply", BindingFlags.Static | BindingFlags.Public, null, new[] { typeof(float), type }, null)?.ReturnType == type &&
+            type.GetMethod("op_Addition", BindingFlags.Static | BindingFlags.Public, null, new[] { type, type }, null)?.ReturnType == type;
+
+
         private class ShaderVariable
         {
-            public FieldInfo? VertexField { get; set; }
-            public FieldInfo? FragmentField { get; set; }
+            public ShaderVariable(FieldInfo vertexField, FieldInfo fragmentField, bool fileringEnabled)
+            {
+                VertexField = vertexField;
+                FragmentField = fragmentField;
+                FileringEnabled = fileringEnabled;
+            }
+
+            public FieldInfo VertexField { get; private init; }
+            public FieldInfo FragmentField { get; private init; }
+            public bool FileringEnabled { get; set; }
         }
 
 

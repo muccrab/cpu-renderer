@@ -6,7 +6,7 @@ namespace CPU_Doom.Interfaces
 
     public interface IVertexShader : IShader
     {
-        public Vector4 Position { get; }
+        public Vector4 Position { get; set; }
 
         public void Execute();
     }

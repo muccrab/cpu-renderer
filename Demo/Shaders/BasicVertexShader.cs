@@ -13,7 +13,7 @@ namespace Demo.Shaders
 {
     internal class BasicVertexShader : IVertexShader
     {
-        public Vector4 Position { get; private set; }
+        public Vector4 Position { get; set; }
 
         [UniformAttribute("cameraPos")]
         public static Vector4d uniCameraPos;
@@ -28,16 +28,14 @@ namespace Demo.Shaders
 
 
 
-        [OutputAttribute("normal")]
-        public Vector3 outNormal;
-
-        [OutputAttribute("intensity")]
-        public float outIntesity;
+        [OutputAttribute("f_color")]
+        public Vector4 outColor;
 
         public void Execute()
         {
-            //Position = inPosition;
-            //outColor = inColor;
+            inPosition.W = 1;
+            Position = inPosition;
+            outColor = inColor;
         }
     }
 }

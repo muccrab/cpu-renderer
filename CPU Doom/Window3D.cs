@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using CPU_Doom.Types;
 using OpenTK.Mathematics;
 using System.Drawing;
+using CPU_Doom.Shaders;
 
 
 
@@ -24,8 +25,8 @@ namespace CPU_Doom
         public Window3D(int width, int height, string title, int renderBuffers = 2) 
         { 
             _window = CreateWindow(width, height, title);
-            _buffers = new FrameBuffer[renderBuffers];
-            for (int i = 0; i < renderBuffers; i++) _buffers[i] = new FrameBuffer(width * height, PIXELTYPE.RGBA32);
+            _buffers = new FrameBuffer2d[renderBuffers];
+            for (int i = 0; i < renderBuffers; i++) _buffers[i] = new FrameBuffer2d(width, height, PIXELTYPE.RGBA32);
         }
 
         public void Update(Action<FrameContext> loop) 
@@ -66,9 +67,10 @@ namespace CPU_Doom
             _window.Display();
         }
 
-        public void Draw()
+        public void Draw(ShaderProgram program)
         {
-
+            if (_bindedArray == null) return;
+            program.Draw(_buffers[_currentBuffer], _bindedArray);
         }
 
         public void BindVertexArray(VertexArrayObject? vao)
@@ -91,7 +93,7 @@ namespace CPU_Doom
         private VertexArrayObject? _bindedArray;
         private RenderWindow _window;
         private FrameContext _frameContext = new FrameContext();
-        private FrameBuffer[] _buffers;
+        private FrameBuffer2d[] _buffers;
         private int _currentBuffer = 0;
         private int _width, _height;
 

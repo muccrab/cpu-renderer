@@ -1,5 +1,6 @@
 ﻿using CPU_Doom.Interfaces;
 using CPU_Doom.Shaders;
+using CPU_Doom.Types;
 using OpenTK.Mathematics;
 
 namespace Demo.Shaders
@@ -14,16 +15,23 @@ namespace Demo.Shaders
         public static Vector4d u_lightPos;
 
         [OutputAttribute("color")]
-        public Vector4 o_color;
+        public int o_color;
 
-        [InputAttribute("normal")]
-        public Vector3 i_normal;
-        [InputAttribute("intensity")]
-        public float i_intensity;
+        [InputAttribute("f_color")]
+        public Vector4 inColor;
 
         public void Execute()
         {
-        if (1 == 1) return;
+            o_color = new byte[4] { 
+                (byte)(255 * inColor.X),
+                (byte)(255 * inColor.Y),
+                (byte)(255 * inColor.Z), 
+                255 }.ToInt();
+            //o_color = (((255 * 255 + (int)(255 * inColor.Z)) * 255 + (int)(255 * inColor.Y)) * 255 + (int)inColor.X);
+            //o_color.Y = ;
+           // o_color.Z = ;
+            //o_color.W = 255;
+            //o_color = inColor;
         }
 
     }

@@ -29,7 +29,7 @@ namespace CPU_Doom.Buffers
         public void AddEntry(PIXELTYPE type, int length)
         {
             _stride.Add(new(type, length, StrideLength));
-            StrideLength += (int)type;
+            StrideLength += (int)type * length;
             StrideElements++;
         }
         public StrideEntry this[int key] => _stride[key];
@@ -71,11 +71,11 @@ namespace CPU_Doom.Buffers
                 {
                     Stride stride = _buffer._Stride;
                     var stridePair = stride[key];
-                    int offset = stridePair.startOffset;
+                    int offset = _indexStart + stridePair.startOffset;
                     int typeLenght = stridePair.typeLength;
                     int length = stridePair.entryLength;
 
-                    return _buffer._data[offset..(typeLenght * length)];
+                    return _buffer._data[offset..(offset + typeLenght * length)];
                 }
             }
         }

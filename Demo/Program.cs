@@ -22,14 +22,14 @@ namespace Demo
             Console.WriteLine(inter.GetType().GetField("DissableFloatConvertion", BindingFlags.Static | BindingFlags.Public).GetValue(null).ToString());
             */
 
-            Window3D window = new Window3D(320, 200, "Doom on CPU");
+            Window3D window = new Window3D(1920, 1080, "Doom on CPU");
             Start(window);
             window.Update((context) =>
             {
                 window.ClearCurrentBuffer(System.Drawing.Color.Green);
                 //_window.SetClearColor(System.Drawing.Color.Red);
                 window.BindVertexArray(_vao);
-                window.Draw();
+                window.Draw(_shader);
                 window.UnbindVertexArray();
 
                 window.DrawFramebuffer();
@@ -55,6 +55,7 @@ namespace Demo
             };
 
 
+
             Stride stride = new Stride();
             stride.AddEntry(PIXELTYPE.FLOAT, 2); // Vertex Position
             stride.AddEntry(PIXELTYPE.FLOAT, 3); // Vertex Color
@@ -62,11 +63,11 @@ namespace Demo
             VertexBuffer vbo = new VertexBuffer(stride, vertices, 3);
             _vao = new VertexArrayObject(indeces, vbo);
 
-            ShaderProgram program = new ShaderProgram(typeof(BasicVertexShader), typeof(BasicFragmentShader));
+            _shader = new ShaderProgram<BasicVertexShader, BasicFragmentShader>();
             Console.WriteLine("Shaders Linked");
         }
 
-
+        private static ShaderProgram _shader;
         private static VertexArrayObject _vao;
     }
 }

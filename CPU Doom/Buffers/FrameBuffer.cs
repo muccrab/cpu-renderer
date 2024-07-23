@@ -14,11 +14,63 @@ using OpenTK.Mathematics;
 
 namespace CPU_Doom.Buffers
 {
+    public class FrameBuffer2d : SizedEnum<FrameBuffer>
+    {
+        public int TypeLength => _typeLn;
 
+        public byte[] Data { get {
+                byte[] ret = new byte[TypeLength * _width * _height];
+                var data = (from buffer in _subBuffers select buffer.Data);
+                int i = 0;
+                foreach (var dataBytes in data)
+                {
+                    foreach (var b in dataBytes)
+                    {
+                        ret[i] = (byte)b;
+                        i++;
+                    }
+                }
+                return ret;
+            } } //TODO: REDO FrameBuffer2d...This is not acceptable!!!!!
+
+
+        public FrameBuffer2d(int width, int height, PIXELTYPE type) 
+        {
+            _width = width;
+            _height = height;
+            _typeLn = (int)type;
+            _subBuffers = (from _ in Enumerable.Range(0, height) select new FrameBuffer(width, type)).ToArray();
+        }
+        public override FrameBuffer this[int key] => _subBuffers[key];
+        public override int Size => _height;
+        public int RowSize => _width;
+
+        public void Clear(Vector4 color)
+        {
+            foreach(var buffer in _subBuffers) buffer.Clear(color);
+        }
+
+        public void Clear(System.Drawing.Color color)
+        {
+            foreach (var buffer in _subBuffers) buffer.Clear(color);
+        }
+
+        public void Clear()
+        {
+            foreach (var buffer in _subBuffers) buffer.Clear();
+        }
+
+
+
+        private int _typeLn;
+        private int _width, _height;
+        private FrameBuffer[] _subBuffers;
+    }
     public class FrameBuffer : SizedSetEnum<byte[]>
     {
         public override int Size => _size;
         public byte[] Data => _data;
+        public int TypeLength => _typeLn;
         public FrameBuffer(int size, PIXELTYPE type)
         {
             _size = size;
@@ -70,6 +122,5 @@ namespace CPU_Doom.Buffers
         private int _typeLn;
         private byte[] _data;
         private int _size;
-
     }
 }
