@@ -27,14 +27,17 @@ namespace CPU_Doom
             _window = CreateWindow(width, height, title);
             _buffers = new FrameBuffer2d[renderBuffers];
             for (int i = 0; i < renderBuffers; i++) _buffers[i] = new FrameBuffer2d(width, height, PIXELTYPE.RGBA32);
+            _depthBuffer = new FrameBuffer2d(_width, _height, PIXELTYPE.FLOAT);
         }
 
-        public void Update(Action<FrameContext> loop) 
+        public void Update(Action<IUserFrameContext> loop) 
         {
+            FrameContext frameContext = new FrameContext(new WidnowTime());
             while (_window.IsOpen)
             {
+                frameContext.NextFrame();
                 _window.DispatchEvents();
-                loop.Invoke(_frameContext);
+                loop.Invoke(frameContext);
             }
         }
 
@@ -58,6 +61,10 @@ namespace CPU_Doom
             _currentBuffer %= _buffers.Length;
         }
 
+        public void DepthBufferingEnabled(bool enabled) => _depthBufferEnabled = enabled;
+
+        public void ClearDepthBuffer() => _depthBuffer.Clear();
+         
         public void DrawFramebuffer()
         {
             Image image = new Image((uint)_width, (uint)_height, _buffers[_currentBuffer].Data); //Figure out if this fucks up for little endian colors......
@@ -70,7 +77,7 @@ namespace CPU_Doom
         public void Draw(ShaderProgram program)
         {
             if (_bindedArray == null) return;
-            program.Draw(_buffers[_currentBuffer], _bindedArray);
+            program.Draw(_buffers[_currentBuffer], _bindedArray, _depthBufferEnabled ? _depthBuffer : null);
         }
 
         public void BindVertexArray(VertexArrayObject? vao)
@@ -92,8 +99,9 @@ namespace CPU_Doom
 
         private VertexArrayObject? _bindedArray;
         private RenderWindow _window;
-        private FrameContext _frameContext = new FrameContext();
         private FrameBuffer2d[] _buffers;
+        private FrameBuffer2d _depthBuffer;
+        private bool _depthBufferEnabled = false;
         private int _currentBuffer = 0;
         private int _width, _height;
 

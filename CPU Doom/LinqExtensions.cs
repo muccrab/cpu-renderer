@@ -52,7 +52,5 @@ namespace CPU_Doom
             }
             return ret;
         }
-
-
     }
 }

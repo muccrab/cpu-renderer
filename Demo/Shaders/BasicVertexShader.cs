@@ -26,16 +26,26 @@ namespace Demo.Shaders
         [InputAttribute("in_color")]
         public Vector4 inColor;
 
-
+        [UniformAttribute("u_time")]
+        public static float uTime;
 
         [OutputAttribute("f_color")]
         public Vector4 outColor;
 
+
+
+
+        private static float Rad(float angle) => angle * MathF.PI / 180;
+
+
+
         public void Execute()
         {
             inPosition.W = 1;
-            Position = inPosition;
-            outColor = inColor;
+            //inPosition.Z = 1;
+            Matrix4 rotation = Matrix4.CreateRotationX(uTime) * Matrix4.CreateRotationY(uTime / 2);
+            Position = inPosition * rotation + new Vector4(0,0,1,0);
+            outColor = inColor; //+ new Vector4(uTime > 1 ? uTime - (int)uTime : uTime);
         }
     }
 }

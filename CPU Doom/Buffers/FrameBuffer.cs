@@ -41,9 +41,11 @@ namespace CPU_Doom.Buffers
             _typeLn = (int)type;
             _subBuffers = (from _ in Enumerable.Range(0, height) select new FrameBuffer(width, type)).ToArray();
         }
-        public override FrameBuffer this[int key] => _subBuffers[key];
+        public FrameBuffer this[int key] => Get(key);
         public override int Size => _height;
         public int RowSize => _width;
+
+        public override FrameBuffer Get(int key) => _subBuffers[key];
 
         public void Clear(Vector4 color)
         {
@@ -78,12 +80,15 @@ namespace CPU_Doom.Buffers
             _data = new byte[size * _typeLn];
         }
 
-        public override byte[] this[int key]
+        public byte[] this[int key]
         {
-            get => _data[(key * _typeLn).._typeLn];
+            get => Get(key);
+            set => Set(key, value);
         }
 
-        public override void Setter(int key, byte[] value)
+        public override byte[] Get(int key) => _data[(key * _typeLn)..(key * _typeLn + _typeLn)];
+
+        public override void Set(int key, byte[] value)
         {
             int minLn = Math.Min(_typeLn, value.Length);
             for (int i = 0; i < minLn; ++i)

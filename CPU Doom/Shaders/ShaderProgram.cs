@@ -14,7 +14,8 @@ namespace CPU_Doom.Shaders
 
     public abstract class ShaderProgram
     {
-        public abstract void Draw(FrameBuffer2d frameBuffer, VertexArrayObject vertexArray);
+        public abstract void Draw(FrameBuffer2d frameBuffer, VertexArrayObject vertexArray, FrameBuffer2d? depthBuffer);
+        public abstract void SetUniform(string name, object value);
     }
 
 
@@ -25,7 +26,7 @@ namespace CPU_Doom.Shaders
         List<FieldInfo> _vertexInputs = new List<FieldInfo>();
         Dictionary<string, ShaderVariable> _linkedVariables = new Dictionary<string, ShaderVariable>(); // Dictionary for vertexOut/fragmentIn.
         FieldInfo _fragmentOutput;
-        Dictionary<string, ShaderUniform> _uniforms = new Dictionary<string, ShaderUniform>();
+        Dictionary<string, ShaderUniformPar> _uniforms = new Dictionary<string, ShaderUniformPar>();
 
         public ShaderProgram()
         {
@@ -35,7 +36,7 @@ namespace CPU_Doom.Shaders
             if (_fragmentOutput == null) throw new ArgumentNullException("Fragment Shader must contain a output."); // Compiller was shouting at me if I did this check elsewhere, so I have it in the constructor.
         }
 
-        public override void Draw(FrameBuffer2d frameBuffer, VertexArrayObject vertexArray)
+        public override void Draw(FrameBuffer2d frameBuffer, VertexArrayObject vertexArray, FrameBuffer2d? depthBuffer)
         {
             // Vertex Shader Exxecution
             int vertexCount = vertexArray.Vertices.Size;
@@ -59,28 +60,32 @@ namespace CPU_Doom.Shaders
             Vector2 frameBufferSize = new Vector2(frameBuffer.RowSize, frameBuffer.Size) / 2; // Divide by two here to save computation when converting Clip space to FrameBuffer space
             for (int i = 0; i < vertexArray.Indices.Length; i+=3) 
             {
-                TVER A = vertices[i];
-                TVER B = vertices[i + 1];
-                TVER C = vertices[i + 2];
+                TVER A = vertices[vertexArray.Indices[i]];
+                TVER B = vertices[vertexArray.Indices[i + 1]];
+                TVER C = vertices[vertexArray.Indices[i + 2]];
 
-                Vector2 posA = (A.Position.Xy + Vector2.One) * frameBufferSize;
-                Vector2 posB = (B.Position.Xy + Vector2.One) * frameBufferSize;
-                Vector2 posC = (C.Position.Xy + Vector2.One) * frameBufferSize;
+                Vector2 posA, posB, posC, ab, bc, ca;
 
-                Vector2 w0 = posB - posA;
-                Vector2 w1 = posC - posB;
-                Vector2 w2 = posA - posC;
-                bool backwards = false;
-
-                float triangleArea = MathVec.Vec2Cross(w0, -w1);
-
-                if (MathVec.Vec2Cross(w0, w1) > 0)
+                void SetUpFrag()
                 {
-                    w0 = -w0;
-                    w1 = -w1;
-                    w2 = -w2;
-                    backwards = true;
+                    posA = (A.Position.Xy + Vector2.One) * frameBufferSize;
+                    posB = (B.Position.Xy + Vector2.One) * frameBufferSize;
+                    posC = (C.Position.Xy + Vector2.One) * frameBufferSize;
+
+                    ab = posB - posA;
+                    bc = posC - posB;
+                    ca = posA - posC;
                 }
+                SetUpFrag();
+                if (MathVec.Vec2Cross(ab, bc) > 0)
+                {
+                    TVER tmp = B;
+                    B = C;
+                    C = tmp;
+                    SetUpFrag();
+                }
+
+                float triangleArea = MathVec.Vec2Cross(ab, -ca);
 
                 // Calculate Bounding Box of a Triangle.
                 float minX =  MathHelper.Clamp(MathF.Floor(MathVec.Min3(posA.X, posB.X, posC.X)), 0f, frameBuffer.RowSize) + 0.5f;
@@ -94,10 +99,10 @@ namespace CPU_Doom.Shaders
                     posA = posA,
                     posB = posB,
                     posC = posC,
-                    AB = w0,
-                    BC = w1,
-                    CA = w2,
-                    backwards = backwards
+                    AB = ab,
+                    BC = bc,
+                    CA = ca,
+                    backwards = false
                 };
 
                 int interX = (int)MathF.Ceiling(maxX - minX);
@@ -131,7 +136,10 @@ namespace CPU_Doom.Shaders
                     if (IsInsideTriangle(products))
                     {
                         TFRAG fragmentShader = new TFRAG();
-                        foreach(var verOutFragOut in _linkedVariables.Values)
+                        float alpha = products.cA / triangleArea;
+                        float beta = products.cB / triangleArea;
+                        float gamma = products.cC / triangleArea;
+                        foreach (var verOutFragOut in _linkedVariables.Values)
                         {
                             if (verOutFragOut == null) continue;
 
@@ -142,13 +150,8 @@ namespace CPU_Doom.Shaders
 
                             bool filtering = verOutFragOut.FileringEnabled;
 
-                            float alpha = -products.cA / triangleArea;
-                            float beta = -products.cB / triangleArea;
-                            float gamma = -products.cC / triangleArea; 
-
-
                             object fragValue = FilterTriangle(alpha, beta, gamma, valueA, valueB, valueC, ref filtering);
-                            
+
                             verOutFragOut.FileringEnabled = filtering;
 
                             object realFragValue = Convert.ChangeType(fragValue, verOutFragOut.FragmentField.FieldType);
@@ -158,13 +161,28 @@ namespace CPU_Doom.Shaders
                         object? fragOutput = _fragmentOutput.GetValue(fragmentShader);
                         if (fragOutput != null)
                         {
+                            int intX = (int)x; int intY = (int)y;
+
+                            if (depthBuffer != null)
+                            {
+                                float posZ = ((alpha * A.Position.Z + beta * B.Position.Z + gamma * C.Position.Z) + 1) / 2;
+                                byte[] bufferZBytes = depthBuffer.Get(intY).Get(intX);
+                                float bufferZ = bufferZBytes.ToFloat();
+
+                                if (posZ - bufferZ < 0)
+                                {
+                                    return;
+                                }
+                                depthBuffer.Get(intY).Set(intX, posZ.ToByteArray());
+                            }
+
                             byte[] fragOutArr = PixelTypeConverter.GetBytesFromStruct(fragOutput);
-                            frameBuffer[(int)y][(int)x] = fragOutArr;
+                            frameBuffer[intY][intX] = fragOutArr;
                         }
                     }
 
                 });
-
+                
                 /*
                 for (int I = 0; I < interX * interY; I++)
                 {
@@ -179,7 +197,10 @@ namespace CPU_Doom.Shaders
                     if (IsInsideTriangle(products))
                     {
                         TFRAG fragmentShader = new TFRAG();
-                        foreach(var verOutFragOut in _linkedVariables.Values)
+                        float alpha = products.cA / triangleArea;
+                        float beta = products.cB / triangleArea;
+                        float gamma = products.cC / triangleArea;
+                        foreach (var verOutFragOut in _linkedVariables.Values)
                         {
                             if (verOutFragOut == null) continue;
 
@@ -190,13 +211,8 @@ namespace CPU_Doom.Shaders
 
                             bool filtering = verOutFragOut.FileringEnabled;
 
-                            float alpha = -products.cA / triangleArea;
-                            float beta = -products.cB / triangleArea;
-                            float gamma = -products.cC / triangleArea; 
-
-
                             object fragValue = FilterTriangle(alpha, beta, gamma, valueA, valueB, valueC, ref filtering);
-                            
+
                             verOutFragOut.FileringEnabled = filtering;
 
                             object realFragValue = Convert.ChangeType(fragValue, verOutFragOut.FragmentField.FieldType);
@@ -206,8 +222,23 @@ namespace CPU_Doom.Shaders
                         object? fragOutput = _fragmentOutput.GetValue(fragmentShader);
                         if (fragOutput != null)
                         {
+                            int intX = (int)x; int intY = (int)y;
+
+                            if (depthBuffer != null)
+                            {
+                                float posZ = ((alpha * A.Position.Z + beta * B.Position.Z + gamma * C.Position.Z) + 1) / 2;
+                                byte[] bufferZBytes = depthBuffer.Get(intY).Get(intX);
+                                float bufferZ = bufferZBytes.ToFloat();
+
+                                if (posZ - bufferZ < 0)
+                                {
+                                    continue;
+                                }
+                                depthBuffer.Get(intY).Set(intX, posZ.ToByteArray());
+                            }
+
                             byte[] fragOutArr = PixelTypeConverter.GetBytesFromStruct(fragOutput);
-                            frameBuffer[(int)y][(int)x] = fragOutArr;
+                            frameBuffer[intY][intX] = fragOutArr;
                         }
                     }
                 }
@@ -248,20 +279,12 @@ namespace CPU_Doom.Shaders
             Vector2 pA = data.posA - point;
             Vector2 pB = data.posB - point;
             Vector2 pC = data.posC - point;
-            if (!data.backwards)
-            {
-                return new CrossProducts
-                {
-                       cA = MathVec.Vec2Cross(pA, data.AB),
-                       cB = MathVec.Vec2Cross(pB, data.BC),
-                       cC = MathVec.Vec2Cross(pC, data.CA) 
-                };
-            }
+
             return new CrossProducts
             {
-                cA = MathVec.Vec2Cross(pA, data.CA),
-                cB = MathVec.Vec2Cross(pB, data.AB),
-                cC = MathVec.Vec2Cross(pC, data.BC)
+                    cC = MathVec.Vec2Cross(pA, data.AB),
+                    cA = MathVec.Vec2Cross(pB, data.BC),
+                    cB = MathVec.Vec2Cross(pC, data.CA) 
             };
         }
 
@@ -288,7 +311,7 @@ namespace CPU_Doom.Shaders
         private void LinkShaders() 
         {
             LinkVariables();
-            //LinkUniforms();
+            LinkUniforms();
         }
 
         private void LinkVariables()
@@ -370,7 +393,7 @@ namespace CPU_Doom.Shaders
 
             foreach (var uniform in verFragUniforms)
             {
-                ShaderUniform? linkedUniform = ShaderUniform.LinkUniform(uniform.Item1, uniform.Item2);
+                ShaderUniformPar? linkedUniform = ShaderUniformPar.LinkUniform(uniform.Item1, uniform.Item2);
                 if (linkedUniform == null) continue; // TODO: Logger
                 var unAt = uniform.Item1?.GetCustomAttribute<UniformAttribute>();
                 if (unAt == null) unAt = uniform.Item2?.GetCustomAttribute<UniformAttribute>();
@@ -404,6 +427,11 @@ namespace CPU_Doom.Shaders
             type.GetMethod("op_Multiply", BindingFlags.Static | BindingFlags.Public, null, new[] { typeof(float), type }, null)?.ReturnType == type &&
             type.GetMethod("op_Addition", BindingFlags.Static | BindingFlags.Public, null, new[] { type, type }, null)?.ReturnType == type;
 
+        public override void SetUniform(string name, object value)
+        {
+            if (_uniforms.ContainsKey(name))
+            _uniforms[name].SetUniform(value); //TODO: Logger
+        }
 
         private class ShaderVariable
         {
@@ -420,11 +448,11 @@ namespace CPU_Doom.Shaders
         }
 
 
-        abstract class ShaderUniform
+        abstract class ShaderUniformPar
         {
-            public abstract void SetUniform(object value); // TODO: if performance is gonna be fucked, this encapsulation might be the reason :)
+            public abstract void SetUniform(object value); 
 
-            public static ShaderUniform? LinkUniform(FieldInfo? vertexField, FieldInfo? fragmentField)
+            public static ShaderUniformPar? LinkUniform(FieldInfo? vertexField, FieldInfo? fragmentField)
             {
                 Type? uniformType = TryGetType(vertexField, fragmentField);
                 if (uniformType == null) return null;
@@ -433,11 +461,11 @@ namespace CPU_Doom.Shaders
                 if (!constructedUniformCache.ContainsKey(uniformType))
                 {
                     Type genericuniform = typeof(ShaderUniform<>);
-                    constructedType = genericuniform.MakeGenericType(uniformType);
+                    constructedType = genericuniform.MakeGenericType(typeof(TVER), typeof(TFRAG), uniformType);
                     constructedUniformCache.Add(uniformType, constructedType);
                 }
                 else constructedType = constructedUniformCache[uniformType];
-                ShaderUniform? uniform = (ShaderUniform?)Activator.CreateInstance(constructedType, true);
+                ShaderUniformPar? uniform = (ShaderUniformPar?)Activator.CreateInstance(constructedType, true);
                 SetFieldsInUniform(vertexField, fragmentField, uniform, constructedType);
                 return uniform;
             }
@@ -472,7 +500,7 @@ namespace CPU_Doom.Shaders
 
             }
 
-            private static void SetFieldsInUniform(FieldInfo? vertexField, FieldInfo? fragmentField, ShaderUniform? uniform, Type constructedType)
+            private static void SetFieldsInUniform(FieldInfo? vertexField, FieldInfo? fragmentField, ShaderUniformPar? uniform, Type constructedType)
             {
                 if (uniform == null) return;
                 ConstructedTypeProperties properties;
@@ -493,7 +521,7 @@ namespace CPU_Doom.Shaders
 
         }
 
-        private class ShaderUniform<UniformType> : ShaderUniform where UniformType : struct
+        private class ShaderUniform<UniformType> : ShaderUniformPar where UniformType : struct
         {
             public FieldInfo? vertexField { get; private set; }
             public FieldInfo? fragmentField { get; private set; }

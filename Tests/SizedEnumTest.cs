@@ -15,7 +15,8 @@ namespace Tests
             private List<T> list = new List<T>();
 
             public BetterList(List<T> values) { list = values; }
-            public override T this[int key] { get => list[key]; }
+            public T this[int key] => Get(key);
+            public override T Get(int key) => list[key];
             public T this[long key] { set => list[(int)key] = value; }
             public override int Size => list.Count;
         }

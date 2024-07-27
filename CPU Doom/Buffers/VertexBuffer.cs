@@ -9,8 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace CPU_Doom.Buffers
-{
-    
+{  
     public struct StrideEntry
     {
         public int startOffset, typeLength, entryLength;
@@ -39,14 +38,16 @@ namespace CPU_Doom.Buffers
     public class VertexBuffer : SizedEnum<VertexBuffer.Vertex>
     {
         public override int Size => _size;
-        public VertexBuffer(Stride stride, byte[] data, int size) 
+        public VertexBuffer(Stride stride, byte[] data) 
         {
             _Stride = stride;
             _data = data;
-            _size = size;
+            _size = data.Length / stride.StrideLength;
         }
 
-        public override Vertex this[int key] => new Vertex(key * _Stride.StrideLength, this);
+        public Vertex this[int key] => Get(key);
+
+        public override Vertex Get(int key) => new Vertex(key * _Stride.StrideLength, this);
 
         private Stride _Stride { get; init; }
 
@@ -65,22 +66,19 @@ namespace CPU_Doom.Buffers
             VertexBuffer _buffer;
 
             public override int Size => _buffer._Stride.StrideElements;
-            public override byte[] this[int key]
+            public byte[] this[int key]=>Get(key);
+
+            public override byte[] Get(int key) 
             {
-                get
-                {
-                    Stride stride = _buffer._Stride;
-                    var stridePair = stride[key];
-                    int offset = _indexStart + stridePair.startOffset;
-                    int typeLenght = stridePair.typeLength;
-                    int length = stridePair.entryLength;
+                Stride stride = _buffer._Stride;
+                var stridePair = stride[key];
+                int offset = _indexStart + stridePair.startOffset;
+                int typeLenght = stridePair.typeLength;
+                int length = stridePair.entryLength;
 
-                    return _buffer._data[offset..(offset + typeLenght * length)];
-                }
+                return _buffer._data[offset..(offset + typeLenght * length)];
             }
-        }
-
-
         
+        }
     }
 }
