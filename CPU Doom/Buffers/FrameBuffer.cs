@@ -19,7 +19,6 @@ namespace CPU_Doom.Buffers
     {
         public int TypeLength => _typeLn;
         public PIXELTYPE PixelType { get; private set; }
-
         public byte[] Data { get {
                 byte[] ret = new byte[TypeLength * _width * _height];
                 var data = (from buffer in _subBuffers select buffer.Data);
@@ -34,8 +33,6 @@ namespace CPU_Doom.Buffers
                 }
                 return ret;
             } } //TODO: REDO FrameBuffer2d...This is not acceptable!!!!!
-
-
         public FrameBuffer2d(int width, int height, PIXELTYPE type) 
         {
             _width = width;
@@ -61,8 +58,6 @@ namespace CPU_Doom.Buffers
                                width, type)
                            ).ToArray();
         }
-
-
         public FrameBuffer this[int key] => Get(key);
         public override int Size => _height;
         public int RowSize => _width;
@@ -83,13 +78,11 @@ namespace CPU_Doom.Buffers
         {
             foreach (var buffer in _subBuffers) buffer.Clear();
         }
-
-
-
         private int _typeLn;
         private int _width, _height;
         private FrameBuffer[] _subBuffers;
     }
+
     public class FrameBuffer : SizedSetEnum<byte[]>
     {
         public override int Size => _size;
@@ -103,7 +96,6 @@ namespace CPU_Doom.Buffers
             PixelType = type;
             _data = new byte[size * _typeLn];
         }
-
         public FrameBuffer(byte[] data, int size, PIXELTYPE type)
         {
             _size = size;
@@ -116,15 +108,12 @@ namespace CPU_Doom.Buffers
             else _data = data.Concat(new byte[fullSize - data.Length]).ToArray();
 
         }
-
         public byte[] this[int key]
         {
             get => Get(key);
             set => Set(key, value);
         }
-
         public override byte[] Get(int key) => _data[(key * _typeLn)..(key * _typeLn + _typeLn)];
-
         public override void Set(int key, byte[] value)
         {
             int minLn = Math.Min(_typeLn, value.Length);
@@ -133,7 +122,6 @@ namespace CPU_Doom.Buffers
                 _data[(key * _typeLn) + i] = value[i];
             }
         }
-
         public void Clear(Vector4 color)
         {
             byte[] clearColor = color.ToByteArray_RGBA32();
@@ -142,7 +130,6 @@ namespace CPU_Doom.Buffers
                 this[i] = clearColor;
             });
         }
-
         public void Clear(System.Drawing.Color color)
         {
             byte[] clearColor = color.ToByteArray();
@@ -151,7 +138,6 @@ namespace CPU_Doom.Buffers
                 this[i] = clearColor;
             });
         }
-
         public void Clear()
         {
             byte[] clearColor = new byte[_typeLn];
@@ -160,7 +146,6 @@ namespace CPU_Doom.Buffers
                 this[i] = clearColor;
             });
         }
-
         private int _typeLn;
         private byte[] _data;
         private int _size;

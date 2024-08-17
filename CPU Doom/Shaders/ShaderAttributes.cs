@@ -16,7 +16,6 @@ namespace CPU_Doom.Shaders
         }
     }
 
-
     public class InputAttribute : BasicShaderAttribute 
     {
         public int Location { get; set; } // If location = -1, then it will be automatically set based on position in shader. In Fragment shader position is irrelevant.
@@ -31,12 +30,9 @@ namespace CPU_Doom.Shaders
         public OutputAttribute(string name) : base(name) { }
     }
 
-
     public class UniformAttribute : BasicShaderAttribute
     {
         public UniformAttribute(string name) : base(name) { }
 
     }
-
-
 }

@@ -14,6 +14,7 @@ namespace CPU_Doom.Buffers
     {
         CLAMP, REPEAT, REVERSE
     }
+
     public enum FilterMode
     {
         LINEAR, NONE
@@ -30,7 +31,6 @@ namespace CPU_Doom.Buffers
                 default: return ApplyClamp(value);
             }
         }
-
         private static float ApplyRepeat(float value)
         {
             return value - MathF.Floor(value);
@@ -47,7 +47,6 @@ namespace CPU_Doom.Buffers
             else if (value < 0) value = 0;
             return value;
         }
-
         public static bool TryApplyLinearFiler(dynamic from, dynamic to, float value, out dynamic result)
         {
             try
@@ -60,20 +59,16 @@ namespace CPU_Doom.Buffers
                 return false; 
             }
         }
-
     }
 
     public class TextureBuffer1d : SizedEnum<byte[]>
     {
         public override int Size => _buffer.Size;
-
         public TextureBuffer1d(FrameBuffer buffer) 
         {
             _buffer = buffer;
         }
-
         public TextureBuffer1d(byte[] data, int size, Types.PIXELTYPE type) : this(new FrameBuffer(data, size, type)) { }
-
         public TextureBuffer1d SetWrapMode(WrapMode wrap)
         {
             _wrap = wrap;
@@ -85,7 +80,6 @@ namespace CPU_Doom.Buffers
             return this;
         }
         public byte[] this[int key] => Get(key);
-        
         public byte[] GetPixel(float key)
         {
             key = TextureBufferFunc.ApplyWrap(_wrap, key);
@@ -93,7 +87,6 @@ namespace CPU_Doom.Buffers
             return GetFiltered(key);
         }
         public override byte[] Get(int key) => _buffer.Get(key);
-
         private byte[] GetFiltered(float value)
         {
             switch(_filter) 
@@ -102,7 +95,6 @@ namespace CPU_Doom.Buffers
                 default: return Get((int)value);
             }
         }
-
         private byte[] ApplyLinearFiltering(float value)
         {
             if ((int)value == _buffer.Size - 1) return Get((int)value);
@@ -122,8 +114,6 @@ namespace CPU_Doom.Buffers
             _filter = FilterMode.NONE;
             return Get((int)value);
         }
-
-
         FrameBuffer _buffer;
         WrapMode _wrap;
         FilterMode _filter;
@@ -132,33 +122,27 @@ namespace CPU_Doom.Buffers
     public class TextureBuffer2d : SizedEnum<FrameBuffer>
     {
         public override int Size => _buffer.Size;
-
         public TextureBuffer2d(FrameBuffer2d buffer)
         {
             _buffer = buffer;
         }
-
         public TextureBuffer2d(byte[] data, int width, int height, Types.PIXELTYPE type) : this(new FrameBuffer2d(data, width, height, type)) { }
-
         public TextureBuffer2d SetWrapModeHorizontal(WrapMode wrap)
         {
             _wrapHorizontal = wrap;
             return this;
         }
-
         public TextureBuffer2d SetWrapModeVertical(WrapMode wrap)
         {
             _wrapVertical = wrap;
             return this;
         }
-
         public TextureBuffer2d SetFiltering(FilterMode filter)
         {
             _filter = filter;
             return this;
         }
         public FrameBuffer this[int key] => Get(key);
-
         public byte[] GetPixel(float keyX, float keyY)
         {
             keyX = TextureBufferFunc.ApplyWrap(_wrapHorizontal,keyX);
@@ -167,7 +151,6 @@ namespace CPU_Doom.Buffers
             keyX *= _buffer.RowSize - 1;
             return GetFiltered(keyX, keyY);
         }
-
         private byte[] GetFiltered(float keyX, float keyY)
         {
             switch (_filter)
@@ -176,7 +159,6 @@ namespace CPU_Doom.Buffers
                 default: return _buffer[(int)keyY][(int)keyX];
             }
         }
-
         private byte[] ApplyBilinearFiltering(float keyX, float keyY)
         {
             int flooredKeyX = (int)keyX;
@@ -198,7 +180,7 @@ namespace CPU_Doom.Buffers
                     byte[] dataResult = PixelTypeConverter.ConvertFromPixelType(resultY, _buffer.PixelType);
                     return dataResult;
                 }
-                else goto failed;
+                else BilinearFail(flooredKeyX, flooredKeyY);
             }
             else if (flooredKeyY == _buffer.Size - 1)
             {
@@ -213,7 +195,7 @@ namespace CPU_Doom.Buffers
                     byte[] dataResult = PixelTypeConverter.ConvertFromPixelType(resultX, _buffer.PixelType);
                     return dataResult;
                 }
-                else goto failed;
+                else BilinearFail(flooredKeyX, flooredKeyY);
             }
 
             byte[] libLeftData   = _buffer[flooredKeyY][flooredKeyX];             // Down-Left of a Texture
@@ -226,25 +208,19 @@ namespace CPU_Doom.Buffers
             dynamic authLeft   = PixelTypeConverter.ConvertToPixelType(authLeftData, _buffer.PixelType);
             dynamic authRight  = PixelTypeConverter.ConvertToPixelType(authRightData, _buffer.PixelType);
 
-            bool success = TextureBufferFunc.TryApplyLinearFiler(libLeft, authLeft, keyY - flooredKeyY, out dynamic resultLeft);
-            if (!success) goto failed;
-            success = TextureBufferFunc.TryApplyLinearFiler(libRight, authRight, keyY - flooredKeyY, out dynamic resultRight);
-            if (!success) goto failed;
-            success = TextureBufferFunc.TryApplyLinearFiler(resultLeft, resultRight, keyX - flooredKeyX, out dynamic result);
-            if (!success) goto failed;
+            bool success = true;
+            success &= TextureBufferFunc.TryApplyLinearFiler(libLeft, authLeft, keyY - flooredKeyY, out dynamic resultLeft);
+            success &= TextureBufferFunc.TryApplyLinearFiler(libRight, authRight, keyY - flooredKeyY, out dynamic resultRight);
+            success &= TextureBufferFunc.TryApplyLinearFiler(resultLeft, resultRight, keyX - flooredKeyX, out dynamic result);
+            if (!success) BilinearFail(flooredKeyX, flooredKeyY);
             return PixelTypeConverter.ConvertFromPixelType(result, _buffer.PixelType);
-
-            
-            failed:
-            _filter = FilterMode.NONE;
-            return _buffer[(int)keyY][(int)keyX];
         }
-
-
+        private byte[] BilinearFail(int keyX, int keyY)
+        {
+            _filter = FilterMode.NONE;
+            return _buffer[keyY][keyX];
+        }
         public override FrameBuffer Get(int key) => _buffer.Get(key);
-
-        
-
 
         FrameBuffer2d _buffer;
         WrapMode _wrapHorizontal, _wrapVertical;

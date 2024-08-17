@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 
 namespace CPU_Doom.Buffers
 {
-    
     public class VertexArrayObject
     {
         public ElementBuffer Indices { get; private init; }

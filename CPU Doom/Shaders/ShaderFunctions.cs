@@ -13,7 +13,6 @@ namespace CPU_Doom.Shaders
         {
             _program = program;
         }
-        
         public byte[] Texture1d(int sampler1d, float pos) 
         {
             var texture = _program.GetTexture1d(sampler1d);
@@ -27,12 +26,6 @@ namespace CPU_Doom.Shaders
             return texture.GetPixel(posX, posY);
         }
         public byte[] Texture2d(int sampler1d, Vector2 pos) => Texture2d(sampler1d, pos.X, pos.Y);
-
-
         ShaderProgram _program;
-
-
-
-
     }
 }

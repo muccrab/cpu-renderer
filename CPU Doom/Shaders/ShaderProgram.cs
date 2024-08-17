@@ -8,6 +8,8 @@ using System.Runtime.InteropServices;
 using OpenTK.Mathematics;
 using System.Data;
 using System.Runtime.Serialization;
+using SFML.Graphics;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace CPU_Doom.Shaders
 {
@@ -16,60 +18,58 @@ namespace CPU_Doom.Shaders
     {
         public abstract void Draw(FrameBuffer2d frameBuffer, VertexArrayObject vertexArray, FrameBuffer2d? depthBuffer);
         public abstract void SetUniform(string name, object value);
-
         public abstract int SetTexture1d(TextureBuffer1d texture, int texturePos);
         public abstract int SetTexture2d(TextureBuffer2d texture, int texturePos);
-
         public abstract TextureBuffer1d? GetTexture1d(int texturePos);
         public abstract TextureBuffer2d? GetTexture2d(int texturePos);
     }
 
-
     public class ShaderProgram<TVER, TFRAG> : ShaderProgram where TVER : IVertexShader, new() where TFRAG : IFragmentShader, new()//Connect Vertex and Fragment Shaders.
     {
         Type _vertexType, _fragmentType;
-
-        List<FieldInfo> _vertexInputs = new List<FieldInfo>();
-        Dictionary<string, ShaderVariable> _linkedVariables = new Dictionary<string, ShaderVariable>(); // Dictionary for vertexOut/fragmentIn.
-        FieldInfo _fragmentOutput;
-        Dictionary<string, ShaderUniformPar> _uniforms = new Dictionary<string, ShaderUniformPar>(); 
+        ShaderLinker _linker;
         List<TextureBuffer1d> _textures   = new List<TextureBuffer1d>();
         List<TextureBuffer2d> _textures2d = new List<TextureBuffer2d>();
-
         ShaderFunctions _functions;
-
         public ShaderProgram()
         {
             _vertexType = typeof(TVER);
             _fragmentType = typeof(TFRAG);
-            LinkShaders();
-            if (_fragmentOutput == null) throw new ArgumentNullException("Fragment Shader must contain a output."); // Compiller was shouting at me if I did this check elsewhere, so I have it in the constructor.
+            _linker = new ShaderLinker(_vertexType, _fragmentType);
             _functions = new ShaderFunctions(this);
         }
-
         public override void Draw(FrameBuffer2d frameBuffer, VertexArrayObject vertexArray, FrameBuffer2d? depthBuffer)
         {
-            // Vertex Shader Exxecution
+            TVER[] vertices = RunVertex(vertexArray);
+            RunFragment(vertices, vertexArray, frameBuffer, depthBuffer);
+        }
+
+        private TVER[] RunVertex(VertexArrayObject vertexArray)
+        {
             int vertexCount = vertexArray.Vertices.Size;
             TVER[] vertices = new TVER[vertexCount];
 
-            for (int i = 0; i < vertexCount; ++i) 
+            for (int i = 0; i < vertexCount; ++i)
             {
                 var vertex = vertexArray.Vertices[i];
                 TVER ver = vertices[i] = new TVER();
                 int j = 0;
                 foreach (byte[] vertexAttribute in vertex)
                 {
-                    FieldInfo field = _vertexInputs[j];
+                    FieldInfo field = _linker.VertexInputs[j];
                     field.AssignByteArrayToField(ver, vertexAttribute);
                     j++;
                 }
                 ver.Execute(_functions);
                 ver.Position = ver.Position / ver.Position.W; // Project to 3D space
             }
-            // Fragment Interpolation
+            return vertices;
+        }
+
+        private void RunFragment(TVER[] vertices, VertexArrayObject vertexArray, FrameBuffer2d frameBuffer, FrameBuffer2d? depthBuffer)
+        {
             Vector2 frameBufferSize = new Vector2(frameBuffer.RowSize, frameBuffer.Size) / 2; // Divide by two here to save computation when converting Clip space to FrameBuffer space
-            for (int i = 0; i < vertexArray.Indices.Length; i+=3) 
+            for (int i = 0; i < vertexArray.Indices.Length; i += 3)
             {
                 TVER A = vertices[vertexArray.Indices[i]];
                 TVER B = vertices[vertexArray.Indices[i + 1]];
@@ -99,11 +99,11 @@ namespace CPU_Doom.Shaders
                 float triangleArea = MathVec.Vec2Cross(ab, -ca);
 
                 // Calculate Bounding Box of a Triangle.
-                float minX =  MathHelper.Clamp(MathF.Floor(MathVec.Min3(posA.X, posB.X, posC.X)), 0f, frameBuffer.RowSize) + 0.5f;
-                float minY =  MathHelper.Clamp(MathF.Floor(MathVec.Min3(posA.Y, posB.Y, posC.Y)), 0f, frameBuffer.Size) + 0.5f;
-                float maxX =  MathHelper.Clamp(MathF.Ceiling(MathVec.Max3(posA.X, posB.X, posC.X)), 0f, frameBuffer.RowSize);
-                float maxY =  MathHelper.Clamp(MathF.Ceiling(MathVec.Max3(posA.Y, posB.Y, posC.Y)), 0f, frameBuffer.Size);
-
+                float minX = MathHelper.Clamp(MathF.Floor(MathVec.Min3(posA.X, posB.X, posC.X)), 0f, frameBuffer.RowSize) + 0.5f;
+                float minY = MathHelper.Clamp(MathF.Floor(MathVec.Min3(posA.Y, posB.Y, posC.Y)), 0f, frameBuffer.Size) + 0.5f;
+                float maxX = MathHelper.Clamp(MathF.Ceiling(MathVec.Max3(posA.X, posB.X, posC.X)), 0f, frameBuffer.RowSize);
+                float maxY = MathHelper.Clamp(MathF.Ceiling(MathVec.Max3(posA.Y, posB.Y, posC.Y)), 0f, frameBuffer.Size);
+               
                 // Create reference to data.
                 TriangleData data = new TriangleData()
                 {
@@ -115,133 +115,81 @@ namespace CPU_Doom.Shaders
                     CA = ca,
                     backwards = false
                 };
-
                 int interX = (int)MathF.Ceiling(maxX - minX);
                 int interY = (int)MathF.Ceiling(maxY - minY);
 
-                /*
+                
                 Parallel.For(0, interX * interY, i =>
                 {
                     int iY = i / interX;
                     int iX = i - interX * iY;
-
                     float x = minX + iX;
                     float y = minY + iY;
-
-                    Vector2 point = new Vector2(x, y);
-                    CrossProducts products = GetCrossProducts(data, point);
-                    if (IsInsideTriangle(products))
-                    {
-                        TFRAG fragmentShader = new TFRAG();
-                        float alpha = products.cA / triangleArea;
-                        float beta = products.cB / triangleArea;
-                        float gamma = products.cC / triangleArea;
-                        foreach (var verOutFragOut in _linkedVariables.Values)
-                        {
-                            if (verOutFragOut == null) continue;
-
-                            object? valueA = verOutFragOut.VertexField.GetValue(A);
-                            object? valueB = verOutFragOut.VertexField.GetValue(B);
-                            object? valueC = verOutFragOut.VertexField.GetValue(C);
-                            if (valueA == null || valueB == null || valueC == null) continue;
-
-                            bool filtering = verOutFragOut.FileringEnabled;
-
-                            object fragValue = FilterTriangle(alpha, beta, gamma, valueA, valueB, valueC, ref filtering);
-
-                            verOutFragOut.FileringEnabled = filtering;
-
-                            object realFragValue = Convert.ChangeType(fragValue, verOutFragOut.FragmentField.FieldType);
-                            verOutFragOut.FragmentField.SetValue(fragmentShader, realFragValue);
-                        }
-                        fragmentShader.Execute(_functions);
-                        object? fragOutput = _fragmentOutput.GetValue(fragmentShader);
-                        if (fragOutput != null)
-                        {
-                            int intX = (int)x; int intY = (int)y;
-
-                            if (depthBuffer != null)
-                            {
-                                float posZ = ((alpha * A.Position.Z + beta * B.Position.Z + gamma * C.Position.Z) + 1) / 2;
-                                byte[] bufferZBytes = depthBuffer.Get(intY).Get(intX);
-                                float bufferZ = bufferZBytes.ToFloat();
-
-                                if (posZ - bufferZ < 0)
-                                {
-                                    return;
-                                }
-                                depthBuffer.Get(intY).Set(intX, posZ.ToByteArray());
-                            }
-
-                            byte[] fragOutArr = PixelTypeConverter.GetBytesFromStruct(fragOutput);
-                            frameBuffer[intY][intX] = fragOutArr;
-                        }
-                    }
-
-                });*/
+                    SetOneFragment(x, y, triangleArea, data, A, B, C, frameBuffer, depthBuffer);
+                });
                 
-                
+                /*
                 for (int I = 0; I < interX * interY; I++)
                 {
                     int iY = I / interX;
                     int iX = I - interX * iY;
-
                     float x = minX + iX;
                     float y = minY + iY;
+                    SetOneFragment(x, y, triangleArea, data, A, B, C, frameBuffer, depthBuffer);
+                }*/
+            }
+        }
 
-                    Vector2 point = new Vector2(x, y);
-                    CrossProducts products = GetCrossProducts(data, point);
-                    if (IsInsideTriangle(products))
-                    {
-                        TFRAG fragmentShader = new TFRAG();
-                        float alpha = products.cA / triangleArea;
-                        float beta = products.cB / triangleArea;
-                        float gamma = products.cC / triangleArea;
-                        foreach (var verOutFragOut in _linkedVariables.Values)
-                        {
-                            if (verOutFragOut == null) continue;
+        private void SetOneFragment(float x, float y, float triangleArea, TriangleData data, TVER A, TVER B, TVER C, FrameBuffer2d frameBuffer, FrameBuffer2d? depthBuffer)
+        {
+            Vector2 point = new Vector2(x, y);
+            CrossProducts products = GetCrossProducts(data, point);
+            if (IsInsideTriangle(products))
+            {
+                TFRAG fragmentShader = new TFRAG();
+                float alpha = products.cA / triangleArea;
+                float beta = products.cB / triangleArea;
+                float gamma = products.cC / triangleArea;
+                foreach (var verOutFragOut in _linker.LinkedVariables.Values)
+                {
+                    if (verOutFragOut == null) continue;
 
-                            object? valueA = verOutFragOut.VertexField.GetValue(A);
-                            object? valueB = verOutFragOut.VertexField.GetValue(B);
-                            object? valueC = verOutFragOut.VertexField.GetValue(C);
-                            if (valueA == null || valueB == null || valueC == null) continue;
+                    object? valueA = verOutFragOut.VertexField.GetValue(A);
+                    object? valueB = verOutFragOut.VertexField.GetValue(B);
+                    object? valueC = verOutFragOut.VertexField.GetValue(C);
+                    if (valueA == null || valueB == null || valueC == null) continue;
 
-                            bool filtering = verOutFragOut.FileringEnabled;
+                    bool filtering = verOutFragOut.FileringEnabled;
 
-                            object fragValue = FilterTriangle(alpha, beta, gamma, valueA, valueB, valueC, ref filtering);
+                    object fragValue = FilterTriangle(alpha, beta, gamma, valueA, valueB, valueC, ref filtering);
 
-                            verOutFragOut.FileringEnabled = filtering;
+                    verOutFragOut.FileringEnabled = filtering;
 
-                            object realFragValue = Convert.ChangeType(fragValue, verOutFragOut.FragmentField.FieldType);
-                            verOutFragOut.FragmentField.SetValue(fragmentShader, realFragValue);
-                        }
-                        fragmentShader.Execute(_functions);
-                        object? fragOutput = _fragmentOutput.GetValue(fragmentShader);
-                        if (fragOutput != null)
-                        {
-                            int intX = (int)x; int intY = (int)y;
-
-                            if (depthBuffer != null)
-                            {
-                                float posZ = ((alpha * A.Position.Z + beta * B.Position.Z + gamma * C.Position.Z) + 1) / 2;
-                                byte[] bufferZBytes = depthBuffer.Get(intY).Get(intX);
-                                float bufferZ = bufferZBytes.ToFloat();
-
-                                if (posZ - bufferZ < 0)
-                                {
-                                    continue;
-                                }
-                                depthBuffer.Get(intY).Set(intX, posZ.ToByteArray());
-                            }
-
-                            byte[] fragOutArr = PixelTypeConverter.GetBytesFromStruct(fragOutput);
-                            frameBuffer[intY][intX] = fragOutArr;
-                        }
-                    }
+                    object realFragValue = Convert.ChangeType(fragValue, verOutFragOut.FragmentField.FieldType);
+                    verOutFragOut.FragmentField.SetValue(fragmentShader, realFragValue);
                 }
-                
+                fragmentShader.Execute(_functions);
+                object? fragOutput = _linker.FragmentOutput.GetValue(fragmentShader);
+                if (fragOutput != null)
+                {
+                    int intX = (int)x; int intY = (int)y;
 
+                    if (depthBuffer != null)
+                    {
+                        float posZ = ((alpha * A.Position.Z + beta * B.Position.Z + gamma * C.Position.Z) + 1) / 2;
+                        byte[] bufferZBytes = depthBuffer.Get(intY).Get(intX);
+                        float bufferZ = bufferZBytes.ToFloat();
 
+                        if (posZ - bufferZ < 0)
+                        {
+                            return;
+                        }
+                        depthBuffer.Get(intY).Set(intX, posZ.ToByteArray());
+                    }
+
+                    byte[] fragOutArr = PixelTypeConverter.GetBytesFromStruct(fragOutput);
+                    frameBuffer[intY][intX] = fragOutArr;
+                }
             }
         }
 
@@ -270,7 +218,6 @@ namespace CPU_Doom.Shaders
                     cB = MathVec.Vec2Cross(pC, data.CA) 
             };
         }
-
         private bool IsInsideTriangle(CrossProducts products) => products.cA < 0 && products.cB < 0 && products.cC < 0;
 
         private object FilterTriangle(float coefA, float coefB, float coefC, dynamic a, dynamic b, dynamic c, ref bool supportsFilter) 
@@ -290,129 +237,7 @@ namespace CPU_Doom.Shaders
             else return c;
         }
 
-
-        private void LinkShaders() 
-        {
-            LinkVariables();
-            LinkUniforms();
-        }
-
-        private void LinkVariables()
-        {
-            // Get Input and Output Variables
-            GetInputOutputFields(_vertexType, out IEnumerable<FieldInfo> vertexInputs, out IEnumerable<FieldInfo> vertexOutputs);
-            GetInputOutputFields(_fragmentType, out IEnumerable<FieldInfo> fragmentInputs, out IEnumerable<FieldInfo> fragmentOutputs);
-
-            // Process Vertex Inputs
-            SortedDictionary<int, FieldInfo> specifiedFields = new SortedDictionary<int, FieldInfo>();
-            Queue<FieldInfo> unspecifiedFields = new Queue<FieldInfo>();
-            foreach (FieldInfo field in vertexInputs)
-            {
-                var attribute = field.GetCustomAttribute<InputAttribute>();
-                if (attribute == null) continue; //This check is pointless, but it needs to be here so C# compiler won't scream at me with warnings
-
-                if(attribute.Location == -1) unspecifiedFields.Enqueue(field);
-                else
-                {
-                    if (specifiedFields.ContainsKey(attribute.Location)) return; // TODO: Exception + Logger
-                    specifiedFields.Add(attribute.Location, field);
-                }
-            }
-            _vertexInputs = specifiedFields.Values.ToList();
-            int unspecifiedCount = unspecifiedFields.Count;
-            for (int i = 0; i < unspecifiedCount; i++)
-            {
-                FieldInfo input = unspecifiedFields.Dequeue();
-                _vertexInputs.Add(input);
-            }
-
-            
-            // Join Vertex Outputs and Fragment Inputs.
-            // Inner Join of Vertex Outputs and Fragment Inputs
-            var verOutFragInTable = from verOut in vertexOutputs
-                                    join fragIn in fragmentInputs on verOut.GetCustomAttribute<OutputAttribute>()?.Name equals fragIn.GetCustomAttribute<InputAttribute>()?.Name
-                                    select (verOut, fragIn);
-
-            foreach (var verInFragOut in verOutFragInTable)
-            {
-                FieldInfo verOut = verInFragOut.verOut;
-                FieldInfo fragIn = verInFragOut.fragIn;
-
-                var verOutAt = verInFragOut.verOut.GetCustomAttribute<OutputAttribute>();
-                var fragInAt = verInFragOut.fragIn.GetCustomAttribute<InputAttribute>();
-                if (verOutAt == null || fragInAt == null) continue; //Again pointless, but I won't get warnings
-                if (!verOut.FieldType.IsAssignableTo(fragIn.FieldType)) continue; // TODO: Logger
-
-                var shaderVar = new ShaderVariable(verOut, fragIn, SupportsFiltering(verOut.FieldType)); // TODO: Better Filtering check. Add check that 
-                
-                if (_linkedVariables.ContainsKey(verOutAt.Name)) continue; // Logger + Consider exception.
-                _linkedVariables[verOutAt.Name] = shaderVar;
-            }
-
-            // Process Fragment Output
-            if (!fragmentOutputs.HasExactlyOneElement()) return; // TODO: throw an exception. + Logger
-            var fragOut = fragmentOutputs.First();
-            if (!fragOut.FieldType.GetCustomAttributes(typeof(SerializableAttribute), true).Any()) return; // TODO: throw an exception. + Logger
-            _fragmentOutput = fragOut;
-        }
-
-
-        private void LinkUniforms()
-        {
-            GetUniforms(_vertexType, out var vertexUniforms);
-            GetUniforms(_fragmentType, out var fragmentUniforms);
-
-
-            var verFragUniforms = vertexUniforms.OuterJoin(fragmentUniforms, (ver, frag) => {
-                var verAt = ver.GetCustomAttribute<UniformAttribute>();
-                var fragAt = frag.GetCustomAttribute<UniformAttribute>();
-                if (verAt == null || fragAt == null) return false;
-                return verAt.Name == fragAt.Name;
-            });
-
-
-            foreach (var uniform in verFragUniforms)
-            {
-                ShaderUniformPar? linkedUniform = ShaderUniformPar.LinkUniform(uniform.Item1, uniform.Item2);
-                if (linkedUniform == null) continue; // TODO: Logger
-                var unAt = uniform.Item1?.GetCustomAttribute<UniformAttribute>();
-                if (unAt == null) unAt = uniform.Item2?.GetCustomAttribute<UniformAttribute>();
-                if (unAt == null) continue; // TODO: Logger
-                _uniforms.Add(unAt.Name, linkedUniform);
-            }
-        }
-
-
-        private void GetInputOutputFields(Type type, out IEnumerable<FieldInfo> inputs, out IEnumerable<FieldInfo> outputs)
-        {
-            FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
-            inputs = (from field in fields where (field.GetCustomAttribute(typeof(InputAttribute)) != null) && field.FieldType.IsValueType select field);
-            outputs = (from field in fields where (field.GetCustomAttribute(typeof(OutputAttribute)) != null) && field.FieldType.IsValueType select field);
-        }
-
-        private void GetUniforms(Type type, out IEnumerable<FieldInfo> uniforms)
-        {
-            FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Static);
-            uniforms = (from field in fields where field.GetCustomAttribute(typeof(UniformAttribute)) != null && field.FieldType.IsValueType  select field).DistinctBy(
-                field =>
-                {
-                    var at = field.GetCustomAttribute<UniformAttribute>();
-                    if (at != null) return at.Name;
-                    return ""; // Will never get here because of the code above.
-                }
-            );
-        }
-
-        private static bool SupportsFiltering(Type type) =>
-            type.GetMethod("op_Multiply", BindingFlags.Static | BindingFlags.Public, null, new[] { typeof(float), type }, null)?.ReturnType == type &&
-            type.GetMethod("op_Addition", BindingFlags.Static | BindingFlags.Public, null, new[] { type, type }, null)?.ReturnType == type;
-
-        public override void SetUniform(string name, object value)
-        {
-            if (_uniforms.ContainsKey(name))
-            _uniforms[name].SetUniform(value); //TODO: Logger
-        }
-
+        public override void SetUniform(string name, object value) => _linker.SetUniform(name, value);
         public override int SetTexture1d(TextureBuffer1d texture, int texturePos = -1)
         {
             if (texturePos < _textures.Count && texturePos >= 0)
@@ -424,7 +249,6 @@ namespace CPU_Doom.Shaders
             _textures.Add(texture);
             return _textures.Count - 1;
         }
-
         public override int SetTexture2d(TextureBuffer2d texture, int texturePos)
         {
             if (texturePos < _textures.Count && texturePos >= 0)
@@ -436,133 +260,15 @@ namespace CPU_Doom.Shaders
             _textures2d.Add(texture);
             return _textures2d.Count - 1;
         }
-
         public override TextureBuffer1d? GetTexture1d(int texturePos)
         {
             if (texturePos <= _textures.Count) return _textures[texturePos];
             else return null;
         }
-
         public override TextureBuffer2d? GetTexture2d(int texturePos)
         {
             if (texturePos <= _textures2d.Count) return _textures2d[texturePos];
             else return null;
         }
-
-        private class ShaderVariable
-        {
-            public ShaderVariable(FieldInfo vertexField, FieldInfo fragmentField, bool fileringEnabled)
-            {
-                VertexField = vertexField;
-                FragmentField = fragmentField;
-                FileringEnabled = fileringEnabled;
-            }
-
-            public FieldInfo VertexField { get; private init; }
-            public FieldInfo FragmentField { get; private init; }
-            public bool FileringEnabled { get; set; }
-        }
-
-
-        abstract class ShaderUniformPar
-        {
-            public abstract void SetUniform(object value); 
-
-            public static ShaderUniformPar? LinkUniform(FieldInfo? vertexField, FieldInfo? fragmentField)
-            {
-                Type? uniformType = TryGetType(vertexField, fragmentField);
-                if (uniformType == null) return null;
-
-                Type constructedType;
-                if (!_constructedUniformCache.ContainsKey(uniformType))
-                {
-                    Type genericuniform = typeof(ShaderUniform<>);
-                    constructedType = genericuniform.MakeGenericType(typeof(TVER), typeof(TFRAG), uniformType);
-                    _constructedUniformCache.Add(uniformType, constructedType);
-                }
-                else constructedType = _constructedUniformCache[uniformType];
-                ShaderUniformPar? uniform = (ShaderUniformPar?)Activator.CreateInstance(constructedType, true);
-                SetFieldsInUniform(vertexField, fragmentField, uniform, constructedType);
-                return uniform;
-            }
-            private static Type? TryGetType(FieldInfo? vertexField, FieldInfo? fragmentField) // TODO: LOGGER!!!!!!!
-            {
-                Type? vertexType = vertexField?.FieldType ?? null;
-                Type? fragmentType = fragmentField?.FieldType ?? null;
-                bool vertexNull = vertexType == null;
-                bool fragmentNull = fragmentType == null;
-                if (vertexNull && fragmentNull) { return null; }
-                else if (vertexNull) { return fragmentType; } 
-                else if (fragmentNull) { return vertexType; }
-                else if (vertexType == fragmentType) { return vertexType; }
-                return null;
-            } 
-
-            private class ConstructedTypeProperties
-            {
-                public PropertyInfo VertexFieldProperty { get; init; }
-                public PropertyInfo FragmentFieldProperty { get; init; }
-                public ConstructedTypeProperties(Type cType)
-                {
-                    PropertyInfo? vertexFieldProperty = cType.GetProperty("vertexField");
-                    PropertyInfo? fragmentFieldProperty = cType.GetProperty("fragmentField");
-                    if (vertexFieldProperty == null || fragmentFieldProperty == null)
-                    {
-                        throw new MissingFieldException("The property for vertexField and fragmentField does not exists in ShaderUniform Class");
-                    }
-                    VertexFieldProperty = vertexFieldProperty;
-                    FragmentFieldProperty = fragmentFieldProperty;
-                }
-
-            }
-
-            private static void SetFieldsInUniform(FieldInfo? vertexField, FieldInfo? fragmentField, ShaderUniformPar? uniform, Type constructedType)
-            {
-                if (uniform == null) return;
-                ConstructedTypeProperties properties;
-                if (!_constructedTypePropertyCache.ContainsKey(constructedType))
-                {
-                    properties = new ConstructedTypeProperties(constructedType);
-                    _constructedTypePropertyCache.Add(constructedType, properties);
-                }
-                else properties = _constructedTypePropertyCache[constructedType];
-                properties.VertexFieldProperty.SetValue(uniform, vertexField);
-                properties.FragmentFieldProperty.SetValue(uniform, fragmentField);
-            }
-
-
-
-            static Dictionary<Type, Type> _constructedUniformCache = new Dictionary<Type, Type>();
-            static Dictionary<Type, ConstructedTypeProperties> _constructedTypePropertyCache = new Dictionary<Type, ConstructedTypeProperties>();
-
-        }
-
-        private class ShaderUniform<UniformType> : ShaderUniformPar where UniformType : struct
-        {
-            public FieldInfo? vertexField { get; private set; }
-            public FieldInfo? fragmentField { get; private set; }
-
-            private ShaderUniform(){}
-            public override void SetUniform(object value)
-            {
-                if (value is not UniformType) return; // TODO: LOGGER!!!!!!!
-                SetField(vertexField, value);
-                SetField(fragmentField, value);
-            }
-
-            private void SetField(FieldInfo? field, object value)
-            {
-                if (field == null) return;
-                else if (!field.IsStatic) return; // TODO: LOGGER!!!!!!!
-                try
-                {
-                    field.SetValue(null, value);
-                }
-                catch (FieldAccessException) { }
-                catch (TargetException) { }
-                catch (ArgumentException) { } // TODO: Logger
-            }
-        }
-
     }
 }

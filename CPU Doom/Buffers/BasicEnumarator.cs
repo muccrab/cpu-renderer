@@ -18,14 +18,10 @@ namespace CPU_Doom.Buffers
         public void Set(int key, TRet value);
     }
 
-
     public abstract class SizedEnum<TRet> : ISizedEnum<TRet>
     {
-
         public abstract int Size { get; }
-
         public abstract TRet Get(int key);
-
         public IEnumerator<TRet> GetEnumerator() => new BasicEnumarator<SizedEnum<TRet>, TRet>(this);
         IEnumerator IEnumerable.GetEnumerator() => new BasicEnumarator<SizedEnum<TRet>, TRet>(this);
     }
@@ -42,7 +38,6 @@ namespace CPU_Doom.Buffers
         {
             _enum = enumerable;
         }
-
         public TRet Current
         {
             get
@@ -52,22 +47,17 @@ namespace CPU_Doom.Buffers
                 return _enum.Get(_pos);
             }
         }
-
         object? IEnumerator.Current => Current;
-
         public void Dispose() { }
-
         public bool MoveNext()
         {
             _pos++;
             return _pos < _enum.Size;
         }
-
         public void Reset()
         {
             _pos = -1;
         }
-
         int _pos = -1;
         TEnum _enum;
     }

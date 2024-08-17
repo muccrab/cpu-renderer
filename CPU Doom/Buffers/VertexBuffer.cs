@@ -44,16 +44,11 @@ namespace CPU_Doom.Buffers
             _data = data;
             _size = data.Length / stride.StrideLength;
         }
-
         public Vertex this[int key] => Get(key);
-
         public override Vertex Get(int key) => new Vertex(key * _Stride.StrideLength, this);
-
         private Stride _Stride { get; init; }
-
         byte[] _data;
         int _size;
-
 
         public class Vertex : SizedEnum<byte[]>
         {
@@ -62,9 +57,6 @@ namespace CPU_Doom.Buffers
                 _indexStart = indexStart;
                 _buffer = buffer;
             }
-            int _indexStart;
-            VertexBuffer _buffer;
-
             public override int Size => _buffer._Stride.StrideElements;
             public byte[] this[int key]=>Get(key);
 
@@ -78,7 +70,8 @@ namespace CPU_Doom.Buffers
 
                 return _buffer._data[offset..(offset + typeLenght * length)];
             }
-        
+            int _indexStart;
+            VertexBuffer _buffer;
         }
     }
 }
