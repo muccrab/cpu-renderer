@@ -67,7 +67,7 @@ namespace CPU_Doom
          
         public void DrawFramebuffer()
         {
-            Image image = new Image((uint)_width, (uint)_height, _buffers[_currentBuffer].Data); //Figure out if this fucks up for little endian colors......
+            Image image = new Image((uint)_width, (uint)_height, _buffers[_currentBuffer].Data); 
             Texture texture = new Texture(image);
             Sprite sprite = new Sprite(texture, new IntRect(0, 0, _width, _height));
             _window.Draw(sprite);

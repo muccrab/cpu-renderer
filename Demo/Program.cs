@@ -9,6 +9,9 @@ using Demo.Shaders;
 using OpenTK.Mathematics;
 using System.Reflection;
 
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+
 namespace Demo
 {
     internal class Program
@@ -22,7 +25,7 @@ namespace Demo
             Console.WriteLine(inter.GetType().GetField("DissableFloatConvertion", BindingFlags.Static | BindingFlags.Public).GetValue(null).ToString());
             */
 
-            Window3D window = new Window3D(320, 200, "Doom on CPU");
+            Window3D window = new Window3D(320, 180, "Doom on CPU");
             Start(window);
             window.Update((context) =>
             {
@@ -32,6 +35,9 @@ namespace Demo
                 //_window.SetClearColor(System.Drawing.Color.Red);
                 window.BindVertexArray(_vao);
                 _shader.SetUniform("u_time", time);
+                _shader.SetUniform("u_texture", texPos);
+                if (((int)time) % 2 == 0) _shader.GetTexture2d(texPos).SetFiltering(FilterMode.LINEAR);
+                else _shader.GetTexture2d(texPos).SetFiltering(FilterMode.NONE);
                 window.Draw(_shader);
                 window.UnbindVertexArray();
 
@@ -44,7 +50,7 @@ namespace Demo
 
         static void Start(Window3D window)
         {
-            
+            /*
             byte[] vertices = new float[]
             {
                 -0.5f, -0.5f, -0.5f, 1, 1, 1, //0
@@ -67,20 +73,15 @@ namespace Demo
                 2, 3, 6, 3, 6, 7, //BACK
                 4, 5, 6, 5, 6, 7, //TOP
             };
+            */
+
             
-            /*
             byte[] vertices = new float[]
             {
-                -0.5f, -0.5f, 0f, 1, 0, 0, //0
-                +0.5f, -0.5f, 0f, 0, 1, 0, //1
-                -0.5f, +0.5f, 0f, 0, 0, 1, //2
-                +0.5f, +0.5f, 0f, 1, 1, 1, //3
-
-                -0.25f, -0.25f, 1f, 1, 1, 1, //4
-                +0.25f, -0.75f, -1f, 1, 1, 1, //5
-                -0.25f, +0.25f, 1f, 0, 0, 0, //6
-                +0.25f, +0.75f, -1f, 0, 0, 0, //7
-
+                -1.0f, -1.0f, 0f, 0, 0, //0
+                +1.0f, -1.0f, 0f, 1, 0, //1
+                -1.0f, +1.0f, 0f, 0, 1, //2
+                +1.0f, +1.0f, 0f, 1, 1, //3
 
             }.ToByteArray();
 
@@ -88,9 +89,8 @@ namespace Demo
             ElementBuffer indeces =
             {
                 0, 1, 2, 1, 2, 3,
-                4, 5, 6, 5, 6, 7,
             };
-            */
+            
             /*
             byte[] vertices = new float[]
             {
@@ -115,15 +115,28 @@ namespace Demo
 
             Stride stride = new Stride();
             stride.AddEntry(PIXELTYPE.FLOAT, 3); // Vertex Position
-            stride.AddEntry(PIXELTYPE.FLOAT, 3); // Vertex Color
+            stride.AddEntry(PIXELTYPE.FLOAT, 2); // Vertex Image Pos
+            //stride.AddEntry(PIXELTYPE.FLOAT, 3); // Vertex Color
 
             VertexBuffer vbo = new VertexBuffer(stride, vertices);
             _vao = new VertexArrayObject(indeces, vbo);
 
-            _shader = new ShaderProgram<BasicVertexShader, BasicFragmentShader>();
+            //_shader = new ShaderProgram<BasicVertexShader, BasicFragmentShader>();
+            _shader = new ShaderProgram<TextureVertexShader, TextureFragmentShader>();
             Console.WriteLine("Shaders Linked");
+
+            Image<Rgba32> image = Image<Rgba32>.Load<Rgba32>("obamna.png");
+            byte[] imageArray = new byte[image.Width * image.Height * 4];
+            Span<byte> bytes = new Span<byte>(imageArray);
+            image.CopyPixelDataTo(bytes);
+
+            FrameBuffer2d buffer = new FrameBuffer2d(imageArray, image.Width, image.Height, PIXELTYPE.RGBA32);
+            texPos = _shader.SetTexture2d(new TextureBuffer2d(buffer).SetWrapModeHorizontal(WrapMode.REVERSE).SetWrapModeVertical(WrapMode.REVERSE).SetFiltering(FilterMode.LINEAR), 0);
+            
             window.DepthBufferingEnabled(true);
         }
+
+        static int texPos = 0;
 
         private static ShaderProgram _shader;
         private static VertexArrayObject _vao;

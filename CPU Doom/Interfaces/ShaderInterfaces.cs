@@ -1,4 +1,5 @@
-﻿using OpenTK.Mathematics;
+﻿using CPU_Doom.Shaders;
+using OpenTK.Mathematics;
 
 namespace CPU_Doom.Interfaces
 {
@@ -8,11 +9,11 @@ namespace CPU_Doom.Interfaces
     {
         public Vector4 Position { get; set; }
 
-        public void Execute();
+        public void Execute(ShaderFunctions func);
     }
 
     public interface IFragmentShader : IShader {
         public const bool DissableFloatConvertion = false;
-        public void Execute();
+        public void Execute(ShaderFunctions func);
     }
 }

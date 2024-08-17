@@ -39,7 +39,7 @@ namespace Demo.Shaders
 
 
 
-        public void Execute()
+        public void Execute(ShaderFunctions func)
         {
             inPosition.W = 1;
             //inPosition.Z = 1;

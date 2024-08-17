@@ -16,6 +16,12 @@ namespace CPU_Doom.Shaders
     {
         public abstract void Draw(FrameBuffer2d frameBuffer, VertexArrayObject vertexArray, FrameBuffer2d? depthBuffer);
         public abstract void SetUniform(string name, object value);
+
+        public abstract int SetTexture1d(TextureBuffer1d texture, int texturePos);
+        public abstract int SetTexture2d(TextureBuffer2d texture, int texturePos);
+
+        public abstract TextureBuffer1d? GetTexture1d(int texturePos);
+        public abstract TextureBuffer2d? GetTexture2d(int texturePos);
     }
 
 
@@ -26,7 +32,11 @@ namespace CPU_Doom.Shaders
         List<FieldInfo> _vertexInputs = new List<FieldInfo>();
         Dictionary<string, ShaderVariable> _linkedVariables = new Dictionary<string, ShaderVariable>(); // Dictionary for vertexOut/fragmentIn.
         FieldInfo _fragmentOutput;
-        Dictionary<string, ShaderUniformPar> _uniforms = new Dictionary<string, ShaderUniformPar>();
+        Dictionary<string, ShaderUniformPar> _uniforms = new Dictionary<string, ShaderUniformPar>(); 
+        List<TextureBuffer1d> _textures   = new List<TextureBuffer1d>();
+        List<TextureBuffer2d> _textures2d = new List<TextureBuffer2d>();
+
+        ShaderFunctions _functions;
 
         public ShaderProgram()
         {
@@ -34,6 +44,7 @@ namespace CPU_Doom.Shaders
             _fragmentType = typeof(TFRAG);
             LinkShaders();
             if (_fragmentOutput == null) throw new ArgumentNullException("Fragment Shader must contain a output."); // Compiller was shouting at me if I did this check elsewhere, so I have it in the constructor.
+            _functions = new ShaderFunctions(this);
         }
 
         public override void Draw(FrameBuffer2d frameBuffer, VertexArrayObject vertexArray, FrameBuffer2d? depthBuffer)
@@ -53,7 +64,7 @@ namespace CPU_Doom.Shaders
                     field.AssignByteArrayToField(ver, vertexAttribute);
                     j++;
                 }
-                ver.Execute();
+                ver.Execute(_functions);
                 ver.Position = ver.Position / ver.Position.W; // Project to 3D space
             }
             // Fragment Interpolation
@@ -107,22 +118,8 @@ namespace CPU_Doom.Shaders
 
                 int interX = (int)MathF.Ceiling(maxX - minX);
                 int interY = (int)MathF.Ceiling(maxY - minY);
+
                 /*
-                ThreadManager manager = new ThreadManagerFor(0, interX * interY, i => {
-                    int iY = i / interX;
-                    int iX = i - interX * iY;
-
-                    float x = minX + iX;
-                    float y = minY + iY;
-
-                    Vector2 point = new Vector2(x, y);
-                    if (IsInsideTriangle(data, point))
-                        frameBuffer[(int)y][(int)x] = (from _ in Enumerable.Range(0, frameBuffer.TypeLength) select (byte)255).ToArray();
-                });
-                manager.Execute();
-                while (manager.Finished) { }
-                */
-                
                 Parallel.For(0, interX * interY, i =>
                 {
                     int iY = i / interX;
@@ -157,7 +154,7 @@ namespace CPU_Doom.Shaders
                             object realFragValue = Convert.ChangeType(fragValue, verOutFragOut.FragmentField.FieldType);
                             verOutFragOut.FragmentField.SetValue(fragmentShader, realFragValue);
                         }
-                        fragmentShader.Execute();
+                        fragmentShader.Execute(_functions);
                         object? fragOutput = _fragmentOutput.GetValue(fragmentShader);
                         if (fragOutput != null)
                         {
@@ -181,9 +178,9 @@ namespace CPU_Doom.Shaders
                         }
                     }
 
-                });
+                });*/
                 
-                /*
+                
                 for (int I = 0; I < interX * interY; I++)
                 {
                     int iY = I / interX;
@@ -218,7 +215,7 @@ namespace CPU_Doom.Shaders
                             object realFragValue = Convert.ChangeType(fragValue, verOutFragOut.FragmentField.FieldType);
                             verOutFragOut.FragmentField.SetValue(fragmentShader, realFragValue);
                         }
-                        fragmentShader.Execute();
+                        fragmentShader.Execute(_functions);
                         object? fragOutput = _fragmentOutput.GetValue(fragmentShader);
                         if (fragOutput != null)
                         {
@@ -242,24 +239,10 @@ namespace CPU_Doom.Shaders
                         }
                     }
                 }
-                */
+                
 
-                /*
-                for (float x = minX; x < maxX; x++)
-                {
-                    for (float y = minY; y < maxY; y++) 
-                    {
-                        Vector2 point = new Vector2(x, y);
-                        if (IsInsideTriangle(data, point))
-                            frameBuffer[(int)y][(int)x] = (from _ in Enumerable.Range(0, frameBuffer.TypeLength) select (byte)255).ToArray();
-                    }
-                }*/
 
             }
-            // Fragment Shader Interpolation
-
-
-            // FrameBuffer write
         }
 
         private class TriangleData
@@ -320,10 +303,7 @@ namespace CPU_Doom.Shaders
             GetInputOutputFields(_vertexType, out IEnumerable<FieldInfo> vertexInputs, out IEnumerable<FieldInfo> vertexOutputs);
             GetInputOutputFields(_fragmentType, out IEnumerable<FieldInfo> fragmentInputs, out IEnumerable<FieldInfo> fragmentOutputs);
 
-
-
             // Process Vertex Inputs
-
             SortedDictionary<int, FieldInfo> specifiedFields = new SortedDictionary<int, FieldInfo>();
             Queue<FieldInfo> unspecifiedFields = new Queue<FieldInfo>();
             foreach (FieldInfo field in vertexInputs)
@@ -433,6 +413,42 @@ namespace CPU_Doom.Shaders
             _uniforms[name].SetUniform(value); //TODO: Logger
         }
 
+        public override int SetTexture1d(TextureBuffer1d texture, int texturePos = -1)
+        {
+            if (texturePos < _textures.Count && texturePos >= 0)
+            {
+                _textures[texturePos] = texture;
+                return texturePos;
+            }
+
+            _textures.Add(texture);
+            return _textures.Count - 1;
+        }
+
+        public override int SetTexture2d(TextureBuffer2d texture, int texturePos)
+        {
+            if (texturePos < _textures.Count && texturePos >= 0)
+            {
+                _textures2d[texturePos] = texture;
+                return texturePos;
+            }
+
+            _textures2d.Add(texture);
+            return _textures2d.Count - 1;
+        }
+
+        public override TextureBuffer1d? GetTexture1d(int texturePos)
+        {
+            if (texturePos <= _textures.Count) return _textures[texturePos];
+            else return null;
+        }
+
+        public override TextureBuffer2d? GetTexture2d(int texturePos)
+        {
+            if (texturePos <= _textures2d.Count) return _textures2d[texturePos];
+            else return null;
+        }
+
         private class ShaderVariable
         {
             public ShaderVariable(FieldInfo vertexField, FieldInfo fragmentField, bool fileringEnabled)
@@ -458,13 +474,13 @@ namespace CPU_Doom.Shaders
                 if (uniformType == null) return null;
 
                 Type constructedType;
-                if (!constructedUniformCache.ContainsKey(uniformType))
+                if (!_constructedUniformCache.ContainsKey(uniformType))
                 {
                     Type genericuniform = typeof(ShaderUniform<>);
                     constructedType = genericuniform.MakeGenericType(typeof(TVER), typeof(TFRAG), uniformType);
-                    constructedUniformCache.Add(uniformType, constructedType);
+                    _constructedUniformCache.Add(uniformType, constructedType);
                 }
-                else constructedType = constructedUniformCache[uniformType];
+                else constructedType = _constructedUniformCache[uniformType];
                 ShaderUniformPar? uniform = (ShaderUniformPar?)Activator.CreateInstance(constructedType, true);
                 SetFieldsInUniform(vertexField, fragmentField, uniform, constructedType);
                 return uniform;
@@ -504,20 +520,20 @@ namespace CPU_Doom.Shaders
             {
                 if (uniform == null) return;
                 ConstructedTypeProperties properties;
-                if (!constructedTypePropertyCache.ContainsKey(constructedType))
+                if (!_constructedTypePropertyCache.ContainsKey(constructedType))
                 {
                     properties = new ConstructedTypeProperties(constructedType);
-                    constructedTypePropertyCache.Add(constructedType, properties);
+                    _constructedTypePropertyCache.Add(constructedType, properties);
                 }
-                else properties = constructedTypePropertyCache[constructedType];
+                else properties = _constructedTypePropertyCache[constructedType];
                 properties.VertexFieldProperty.SetValue(uniform, vertexField);
                 properties.FragmentFieldProperty.SetValue(uniform, fragmentField);
             }
 
 
 
-            static Dictionary<Type, Type> constructedUniformCache = new Dictionary<Type, Type>();
-            static Dictionary<Type, ConstructedTypeProperties> constructedTypePropertyCache = new Dictionary<Type, ConstructedTypeProperties>();
+            static Dictionary<Type, Type> _constructedUniformCache = new Dictionary<Type, Type>();
+            static Dictionary<Type, ConstructedTypeProperties> _constructedTypePropertyCache = new Dictionary<Type, ConstructedTypeProperties>();
 
         }
 

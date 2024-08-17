@@ -11,12 +11,14 @@ using System.Drawing;
 using System.Collections;
 using System.Reflection;
 using OpenTK.Mathematics;
+using System.ComponentModel;
 
 namespace CPU_Doom.Buffers
 {
     public class FrameBuffer2d : SizedEnum<FrameBuffer>
     {
         public int TypeLength => _typeLn;
+        public PIXELTYPE PixelType { get; private set; }
 
         public byte[] Data { get {
                 byte[] ret = new byte[TypeLength * _width * _height];
@@ -38,9 +40,29 @@ namespace CPU_Doom.Buffers
         {
             _width = width;
             _height = height;
-            _typeLn = (int)type;
-            _subBuffers = (from _ in Enumerable.Range(0, height) select new FrameBuffer(width, type)).ToArray();
+            _typeLn = PixelTypeConverter.GetSize(type);
+            PixelType = type;
+            _subBuffers = (from _ in Enumerable.Range(0, height) select new FrameBuffer(width, type) ).ToArray();
         }
+        public FrameBuffer2d(byte[] data, int width, int height, PIXELTYPE type)
+        {
+            _width = width;
+            _height = height;
+            _typeLn = PixelTypeConverter.GetSize(type);
+            PixelType = type;
+
+            int fullWidth = _width * _typeLn;
+
+            if (data.Length < fullWidth * _height) data = data.Concat(new byte[fullWidth * height - data.Length]).ToArray();
+
+            _subBuffers = (from i in Enumerable.Range(0, height) 
+                           select new FrameBuffer(
+                               data[(i * fullWidth)..((i+1) * fullWidth)],
+                               width, type)
+                           ).ToArray();
+        }
+
+
         public FrameBuffer this[int key] => Get(key);
         public override int Size => _height;
         public int RowSize => _width;
@@ -73,11 +95,26 @@ namespace CPU_Doom.Buffers
         public override int Size => _size;
         public byte[] Data => _data;
         public int TypeLength => _typeLn;
+        public PIXELTYPE PixelType { get; private set; }
         public FrameBuffer(int size, PIXELTYPE type)
         {
             _size = size;
-            _typeLn = (int)type;
+            _typeLn = PixelTypeConverter.GetSize(type);
+            PixelType = type;
             _data = new byte[size * _typeLn];
+        }
+
+        public FrameBuffer(byte[] data, int size, PIXELTYPE type)
+        {
+            _size = size;
+            _typeLn = PixelTypeConverter.GetSize(type);
+            PixelType = type;
+
+            int fullSize = _size * _typeLn;
+
+            if (data.Length >= fullSize) _data = data[0..fullSize];
+            else _data = data.Concat(new byte[fullSize - data.Length]).ToArray();
+
         }
 
         public byte[] this[int key]

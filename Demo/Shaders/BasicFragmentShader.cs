@@ -23,7 +23,7 @@ namespace Demo.Shaders
         [InputAttribute("f_color")]
         public Vector4 inColor;
 
-        public void Execute()
+        public void Execute(ShaderFunctions func)
         {
             /*
             byte[] lByteColor = new byte[4] {

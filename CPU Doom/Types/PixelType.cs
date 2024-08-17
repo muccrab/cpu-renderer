@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -13,12 +14,58 @@ namespace CPU_Doom.Types
 {
     public enum PIXELTYPE
     {
-        BYTE = sizeof(byte), SHORT = sizeof(short), INT = sizeof(int), FLOAT = sizeof(float), DOUBLE = sizeof(double),
-        RGB24 = 3 * BYTE, RGBA32 = 4 * BYTE,
+        BYTE, SHORT, INT, FLOAT, DOUBLE,
+        RGB24, RGBA32,
     }
+
 
     public static class PixelTypeConverter
     {
+        public static int GetSize(PIXELTYPE pixelType)
+        {
+            switch (pixelType)
+            {
+                case PIXELTYPE.BYTE:   return sizeof(byte);
+                case PIXELTYPE.SHORT:  return sizeof(short);
+                case PIXELTYPE.INT:    return sizeof(int);
+                case PIXELTYPE.FLOAT:  return sizeof(float);
+                case PIXELTYPE.DOUBLE: return sizeof(double);
+                case PIXELTYPE.RGB24:  return sizeof(byte) * 3;
+                case PIXELTYPE.RGBA32: return sizeof(byte) * 4;
+                default:               return 0;
+            }
+        }
+        public static object ConvertToPixelType(byte[] data, PIXELTYPE pixelType)
+        {
+            switch (pixelType)
+            {
+                case PIXELTYPE.BYTE:   return data.ToByte();
+                case PIXELTYPE.SHORT:  return data.ToShort();
+                case PIXELTYPE.INT:    return data.ToInt();
+                case PIXELTYPE.FLOAT:  return data.ToFloat();
+                case PIXELTYPE.DOUBLE: return data.ToDouble();
+                case PIXELTYPE.RGB24:  return data.ToRGB24_Float();
+                case PIXELTYPE.RGBA32: return data.ToRGBA32_Float();
+                default: return data;
+            }
+        }
+
+        public static byte[] ConvertFromPixelType(object data, PIXELTYPE pixelType)
+        {
+            switch (pixelType)
+            {
+                case PIXELTYPE.BYTE:   if (data.GetType() == typeof(byte))    return ToByteArray((byte)data);          else break;
+                case PIXELTYPE.SHORT:  if (data.GetType() == typeof(short))   return ToByteArray((short)data);         else break;
+                case PIXELTYPE.INT:    if (data.GetType() == typeof(int))     return ToByteArray((int)data);           else break;
+                case PIXELTYPE.FLOAT:  if (data.GetType() == typeof(float))   return ToByteArray((float)data);         else break;
+                case PIXELTYPE.DOUBLE: if (data.GetType() == typeof(double))  return ToByteArray((double)data);        else break;
+                case PIXELTYPE.RGB24:  if (data.GetType() == typeof(Vector3)) return ToByteArray_RGB24((Vector3)data); else break;
+                case PIXELTYPE.RGBA32: if (data.GetType() == typeof(Vector4)) return ToByteArray_RGBA32((Vector4)data); else break;
+            }
+            return GetBytesFromStruct(data);
+        }
+
+
         public static byte ToByte(this byte[] bytes) => bytes[0];
         public static short ToShort(this byte[] bytes) => BitConverter.ToInt16(bytes, 0);
         public static int ToInt(this byte[] bytes) => BitConverter.ToInt32(bytes, 0);
@@ -48,7 +95,7 @@ namespace CPU_Doom.Types
         public static byte[] ToByteArray(this double value) => BitConverter.GetBytes(value);
 
         public static byte[] ToByteArray(this float[] valueArray) {
-            int floatLn = (int)PIXELTYPE.FLOAT;
+            int floatLn = GetSize(PIXELTYPE.FLOAT);
             byte[] bytes = new byte[valueArray.Length * floatLn];
             for (int i = 0; i < valueArray.Length; i++)
             {
@@ -61,7 +108,7 @@ namespace CPU_Doom.Types
 
         public static byte[] ToByteArray(this int[] valueArray)
         {
-            int intLn = (int)PIXELTYPE.INT;
+            int intLn = GetSize(PIXELTYPE.INT);
             byte[] bytes = new byte[valueArray.Length * intLn];
             for (int i = 0; i < valueArray.Length; i++)
             {

@@ -16,7 +16,7 @@ namespace CPU_Doom.Buffers
         public StrideEntry(PIXELTYPE type, int length, int offset)
         {
             startOffset = offset;
-            typeLength = (int)type;
+            typeLength = PixelTypeConverter.GetSize(type);
             entryLength = length;
         }
     }
@@ -28,7 +28,7 @@ namespace CPU_Doom.Buffers
         public void AddEntry(PIXELTYPE type, int length)
         {
             _stride.Add(new(type, length, StrideLength));
-            StrideLength += (int)type * length;
+            StrideLength += PixelTypeConverter.GetSize(type) * length;
             StrideElements++;
         }
         public StrideEntry this[int key] => _stride[key];
