@@ -1,28 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace CPU_Doom.Shaders
+﻿namespace CPU_Doom.Shaders
 {
     [AttributeUsage(AttributeTargets.Field, AllowMultiple = false)]
     public abstract class BasicShaderAttribute : Attribute
     {
         public string Name { get; }
-        public BasicShaderAttribute(string name)
-        {
-            Name = name;
-        }
+        public BasicShaderAttribute(string name) => Name = name;
     }
 
     public class InputAttribute : BasicShaderAttribute 
     {
         public int Location { get; set; } // If location = -1, then it will be automatically set based on position in shader. In Fragment shader position is irrelevant.
-        public InputAttribute(string name, int location = -1) : base(name) 
-        {
-            Location = location;
-        }
+        public InputAttribute(string name, int location = -1) : base(name) => Location = location;
     }
 
     public class OutputAttribute : BasicShaderAttribute

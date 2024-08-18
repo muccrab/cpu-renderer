@@ -1,19 +1,11 @@
-﻿
-using CPU_Doom.Buffers;
+﻿using CPU_Doom.Buffers;
 using CPU_Doom.Interfaces;
 using CPU_Doom.Types;
-using SFML.System;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using OpenTK.Mathematics;
-using System.Data;
-using System.Runtime.Serialization;
-using SFML.Graphics;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace CPU_Doom.Shaders
 {
-
     public abstract class ShaderProgram
     {
         public abstract void Draw(FrameBuffer2d frameBuffer, VertexArrayObject vertexArray, FrameBuffer2d? depthBuffer);
@@ -28,15 +20,19 @@ namespace CPU_Doom.Shaders
     {
         Type _vertexType, _fragmentType;
         ShaderLinker _linker;
-        List<TextureBuffer1d> _textures   = new List<TextureBuffer1d>();
-        List<TextureBuffer2d> _textures2d = new List<TextureBuffer2d>();
+        ShaderTextureHandler _textureHandler = new ShaderTextureHandler();
         ShaderFunctions _functions;
+
+        const int _FRAGTHREADS = 128;
+        const bool _DEBUGMODE = true;
+        TFRAG[] _fragShaders = new TFRAG[_FRAGTHREADS];
         public ShaderProgram()
         {
             _vertexType = typeof(TVER);
             _fragmentType = typeof(TFRAG);
             _linker = new ShaderLinker(_vertexType, _fragmentType);
             _functions = new ShaderFunctions(this);
+            _fragShaders = (from _ in Enumerable.Range(0, _FRAGTHREADS) select new TFRAG()).ToArray();
         }
         public override void Draw(FrameBuffer2d frameBuffer, VertexArrayObject vertexArray, FrameBuffer2d? depthBuffer)
         {
@@ -51,7 +47,7 @@ namespace CPU_Doom.Shaders
 
             for (int i = 0; i < vertexCount; ++i)
             {
-                var vertex = vertexArray.Vertices[i];
+                var vertex = vertexArray.Vertices.Get(i);
                 TVER ver = vertices[i] = new TVER();
                 int j = 0;
                 foreach (byte[] vertexAttribute in vertex)
@@ -115,38 +111,57 @@ namespace CPU_Doom.Shaders
                     CA = ca,
                     backwards = false
                 };
+
+                // Calculate internal Fragments of the Bounding Box
                 int interX = (int)MathF.Ceiling(maxX - minX);
                 int interY = (int)MathF.Ceiling(maxY - minY);
+                int inter = interX * interY;
 
-                
-                Parallel.For(0, interX * interY, i =>
+                //Run the Fragment Loop
+                if (inter > _FRAGTHREADS && _DEBUGMODE == false)
                 {
-                    int iY = i / interX;
-                    int iX = i - interX * iY;
-                    float x = minX + iX;
-                    float y = minY + iY;
-                    SetOneFragment(x, y, triangleArea, data, A, B, C, frameBuffer, depthBuffer);
-                });
-                
-                /*
-                for (int I = 0; I < interX * interY; I++)
+                    int fragPerThread = inter / _FRAGTHREADS;
+
+                    Parallel.For(0, _FRAGTHREADS, threadOperation =>
+                    {
+                        int fragPerThisThread = threadOperation == _FRAGTHREADS - 1 ? fragPerThread : inter - (_FRAGTHREADS - 1) * fragPerThread;
+
+                        TFRAG shader = _fragShaders[threadOperation];
+                        for (int threadFrag = 0; threadFrag < fragPerThisThread; threadFrag++)
+                        {
+                            int fragIndex = threadOperation * fragPerThread + threadFrag;
+
+                            int localY = fragIndex / interX;
+                            int localX = fragIndex - interX * localY;
+                            float globalX = minX + localX;
+                            float globalY = minY + localY;
+
+                            SetOneFragment(globalX, globalY, triangleArea, data, A, B, C, frameBuffer, depthBuffer, shader);
+                        }
+                    });
+                }
+                else
                 {
-                    int iY = I / interX;
-                    int iX = I - interX * iY;
-                    float x = minX + iX;
-                    float y = minY + iY;
-                    SetOneFragment(x, y, triangleArea, data, A, B, C, frameBuffer, depthBuffer);
-                }*/
+                    TFRAG shader = _fragShaders[0];
+                    for (int I = 0; I < interX * interY; I++)
+                    {
+                        int iY = I / interX;
+                        int iX = I - interX * iY;
+                        float x = minX + iX;
+                        float y = minY + iY;
+
+                        SetOneFragment(x, y, triangleArea, data, A, B, C, frameBuffer, depthBuffer, shader);
+                    }
+                }
             }
         }
-
-        private void SetOneFragment(float x, float y, float triangleArea, TriangleData data, TVER A, TVER B, TVER C, FrameBuffer2d frameBuffer, FrameBuffer2d? depthBuffer)
+        int debugCounter = 0;
+        private void SetOneFragment(float x, float y, float triangleArea, TriangleData data, TVER A, TVER B, TVER C, FrameBuffer2d frameBuffer, FrameBuffer2d? depthBuffer, TFRAG fragmentShader)
         {
             Vector2 point = new Vector2(x, y);
             CrossProducts products = GetCrossProducts(data, point);
             if (IsInsideTriangle(products))
             {
-                TFRAG fragmentShader = new TFRAG();
                 float alpha = products.cA / triangleArea;
                 float beta = products.cB / triangleArea;
                 float gamma = products.cC / triangleArea;
@@ -238,37 +253,9 @@ namespace CPU_Doom.Shaders
         }
 
         public override void SetUniform(string name, object value) => _linker.SetUniform(name, value);
-        public override int SetTexture1d(TextureBuffer1d texture, int texturePos = -1)
-        {
-            if (texturePos < _textures.Count && texturePos >= 0)
-            {
-                _textures[texturePos] = texture;
-                return texturePos;
-            }
-
-            _textures.Add(texture);
-            return _textures.Count - 1;
-        }
-        public override int SetTexture2d(TextureBuffer2d texture, int texturePos)
-        {
-            if (texturePos < _textures.Count && texturePos >= 0)
-            {
-                _textures2d[texturePos] = texture;
-                return texturePos;
-            }
-
-            _textures2d.Add(texture);
-            return _textures2d.Count - 1;
-        }
-        public override TextureBuffer1d? GetTexture1d(int texturePos)
-        {
-            if (texturePos <= _textures.Count) return _textures[texturePos];
-            else return null;
-        }
-        public override TextureBuffer2d? GetTexture2d(int texturePos)
-        {
-            if (texturePos <= _textures2d.Count) return _textures2d[texturePos];
-            else return null;
-        }
+        public override int SetTexture1d(TextureBuffer1d texture, int texturePos = -1) => _textureHandler.SetTexture1d(texture, texturePos);
+        public override int SetTexture2d(TextureBuffer2d texture, int texturePos) => _textureHandler.SetTexture2d(texture, texturePos);
+        public override TextureBuffer1d? GetTexture1d(int texturePos) => _textureHandler.GetTexture1d(texturePos);
+        public override TextureBuffer2d? GetTexture2d(int texturePos) => _textureHandler?.GetTexture2d(texturePos);
     }
 }

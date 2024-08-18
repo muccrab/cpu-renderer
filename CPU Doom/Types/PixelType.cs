@@ -1,14 +1,7 @@
 ﻿using OpenTK.Mathematics;
-using SFML.System;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Threading.Tasks;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+
 
 namespace CPU_Doom.Types
 {
@@ -17,7 +10,6 @@ namespace CPU_Doom.Types
         BYTE, SHORT, INT, FLOAT, DOUBLE,
         RGB24, RGBA32,
     }
-
 
     public static class PixelTypeConverter
     {
@@ -49,7 +41,6 @@ namespace CPU_Doom.Types
                 default: return data;
             }
         }
-
         public static byte[] ConvertFromPixelType(object data, PIXELTYPE pixelType)
         {
             switch (pixelType)
@@ -64,8 +55,6 @@ namespace CPU_Doom.Types
             }
             return GetBytesFromStruct(data);
         }
-
-
         public static byte ToByte(this byte[] bytes) => bytes[0];
         public static short ToShort(this byte[] bytes) => BitConverter.ToInt16(bytes, 0);
         public static int ToInt(this byte[] bytes) => BitConverter.ToInt32(bytes, 0);
@@ -86,14 +75,11 @@ namespace CPU_Doom.Types
                                bytes[1] / 255f,
                                bytes[2] / 255f);
         }
-
-
         public static byte[] ToByteArray(this byte value) => new byte[] { value };
         public static byte[] ToByteArray(this short value) => BitConverter.GetBytes(value);
         public static byte[] ToByteArray(this int value) => BitConverter.GetBytes(value);
         public static byte[] ToByteArray(this float value) => BitConverter.GetBytes(value);
         public static byte[] ToByteArray(this double value) => BitConverter.GetBytes(value);
-
         public static byte[] ToByteArray(this float[] valueArray) {
             int floatLn = GetSize(PIXELTYPE.FLOAT);
             byte[] bytes = new byte[valueArray.Length * floatLn];
@@ -105,7 +91,6 @@ namespace CPU_Doom.Types
             }
             return bytes;
         }
-
         public static byte[] ToByteArray(this int[] valueArray)
         {
             int intLn = GetSize(PIXELTYPE.INT);
@@ -118,7 +103,6 @@ namespace CPU_Doom.Types
             }
             return bytes;
         }
-
         public static byte[] ToByteArray(this System.Drawing.Color color) => new byte[] { color.R, color.G, color.B, color.A };
         public static Vector4 ToVectorForm(this System.Drawing.Color color) => new Vector4( color.R / 255f, color.G / 255f, color.B / 255f, color.A / 255f );
         public static byte[] ToByteArray_RGBA32(this Vector4 value)
@@ -130,7 +114,6 @@ namespace CPU_Doom.Types
                 (byte)value.X, (byte)value.Y, (byte)value.Z, (byte)value.W
             };
         }
-
         public static byte[] ToByteArray_RGB24(this Vector3 value)
         {
             value = Vector3.Clamp(value, Vector3.Zero, Vector3.One);
@@ -140,7 +123,6 @@ namespace CPU_Doom.Types
                 (byte)value.X, (byte)value.Y, (byte)value.Z
             };
         }
-
         public static byte[] GetBytesFromStruct(object boxedStruct)
         {
             if (boxedStruct == null)
@@ -162,8 +144,6 @@ namespace CPU_Doom.Types
                 handle.Free();
             }
         }
-
-
         public static byte[] ExpandBy(this byte[] bytes, int value)
         {
             if (value == 0) return bytes;
@@ -174,7 +154,6 @@ namespace CPU_Doom.Types
             }
             return ret;
         }
-
         public static T AssignByteArrayToValue<T>(this byte[] data) where T : struct
         {
             Type valueType = typeof(T);
@@ -189,8 +168,6 @@ namespace CPU_Doom.Types
             if (value == null) throw new Exception("Unable to Assign Byte Array to field");
             return (T)value;
         }
-
-
         public static void AssignByteArrayToField(this FieldInfo field, object obj, byte[] data, int fieldSize = -1)
         {
             Type fieldType = field.FieldType;
@@ -209,40 +186,6 @@ namespace CPU_Doom.Types
             {
                 handle.Free();
             }
-
-            /*
-            If Performace will be shit, I might try this version.... 
-            // Get the type of the field
-            Type fieldType = field.FieldType;
-
-            // Get the size of the field type
-            int fieldSize = Marshal.SizeOf(fieldType);
-
-            // Create a buffer with zeroed-out bytes
-            Span<byte> buffer = stackalloc byte[fieldSize];
-        
-            // Copy data into the buffer
-            int lengthToCopy = Math.Min(data.Length, fieldSize);
-            data.AsSpan(0, lengthToCopy).CopyTo(buffer);
-
-            // Assign the buffer to the field
-            object fieldValue;
-            unsafe
-            {
-                fixed (byte* bufferPtr = buffer)
-                {
-                    fieldValue = Marshal.PtrToStructure(new IntPtr(bufferPtr), fieldType);
-                }
-            }
-            field.SetValue(obj, fieldValue);
-             
-             */
-
-
         }
-
     }
-
-
-
 }

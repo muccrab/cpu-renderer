@@ -1,15 +1,13 @@
 ﻿using CPU_Doom.Types;
-using SFML.Graphics;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection.Metadata.Ecma335;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace CPU_Doom.Buffers
 {  
+    public abstract class Vertex : SizedEnum<byte[]>
+    {
+        public byte[] this[int key] => Get(key);
+    }
+
+
     public struct StrideEntry
     {
         public int startOffset, typeLength, entryLength;
@@ -35,7 +33,7 @@ namespace CPU_Doom.Buffers
         private List<StrideEntry> _stride = new List<StrideEntry>();
     }
 
-    public class VertexBuffer : SizedEnum<VertexBuffer.Vertex>
+    public class VertexBuffer : SizedEnum<Vertex>
     {
         public override int Size => _size;
         public VertexBuffer(Stride stride, byte[] data) 
@@ -44,21 +42,20 @@ namespace CPU_Doom.Buffers
             _data = data;
             _size = data.Length / stride.StrideLength;
         }
-        public Vertex this[int key] => Get(key);
-        public override Vertex Get(int key) => new Vertex(key * _Stride.StrideLength, this);
+        public SimpleVertex this[int key] => Get(key);
+        public override SimpleVertex Get(int key) => new SimpleVertex(key * _Stride.StrideLength, this);
         private Stride _Stride { get; init; }
         byte[] _data;
         int _size;
 
-        public class Vertex : SizedEnum<byte[]>
+        public class SimpleVertex : Vertex
         {
-            public Vertex(int indexStart, VertexBuffer buffer)
+            public SimpleVertex(int indexStart, VertexBuffer buffer)
             {
                 _indexStart = indexStart;
                 _buffer = buffer;
             }
             public override int Size => _buffer._Stride.StrideElements;
-            public byte[] this[int key]=>Get(key);
 
             public override byte[] Get(int key) 
             {

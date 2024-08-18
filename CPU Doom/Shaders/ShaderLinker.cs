@@ -1,11 +1,4 @@
-﻿using CPU_Doom.Buffers;
-using SFML.Graphics;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Reflection;
 
 namespace CPU_Doom.Shaders
 {
@@ -147,16 +140,15 @@ namespace CPU_Doom.Shaders
       
         public class ShaderVariable
         {
+            public FieldInfo VertexField { get; private init; }
+            public FieldInfo FragmentField { get; private init; }
+            public bool FileringEnabled { get; set; }
             public ShaderVariable(FieldInfo vertexField, FieldInfo fragmentField, bool fileringEnabled)
             {
                 VertexField = vertexField;
                 FragmentField = fragmentField;
                 FileringEnabled = fileringEnabled;
             }
-
-            public FieldInfo VertexField { get; private init; }
-            public FieldInfo FragmentField { get; private init; }
-            public bool FileringEnabled { get; set; }
         }
 
         public abstract class ShaderUniform
@@ -249,7 +241,5 @@ namespace CPU_Doom.Shaders
                 catch (ArgumentException) { } // TODO: Logger
             }
         }
-
-
     }
 }

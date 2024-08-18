@@ -1,0 +1,21 @@
+﻿using CPU_Doom.Buffers;
+using CPU_Doom.Types;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+
+namespace CPU_Doom_File_Loader
+{
+    public static class TextureLoader
+    {
+        public static TextureBuffer2d Load2dTextureFromFile(string path)
+        {
+            var image = Image.Load<Rgba32>(path);
+            byte[] imageArray = new byte[image.Width * image.Height * 4];
+            var bytes = new Span<byte>(imageArray);
+            image.CopyPixelDataTo(bytes);
+            FrameBuffer2d buffer = new FrameBuffer2d(imageArray, image.Width, image.Height, PIXELTYPE.RGBA32);
+            return new TextureBuffer2d(buffer);
+        }
+
+    }
+}

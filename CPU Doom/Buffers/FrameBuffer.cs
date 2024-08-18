@@ -1,17 +1,6 @@
-﻿using SFML.Graphics;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http.Headers;
-using System.Text;
-using System.Threading.Tasks;
-
-using CPU_Doom.Types;
-using System.Drawing;
-using System.Collections;
-using System.Reflection;
+﻿using CPU_Doom.Types;
 using OpenTK.Mathematics;
-using System.ComponentModel;
+
 
 namespace CPU_Doom.Buffers
 {

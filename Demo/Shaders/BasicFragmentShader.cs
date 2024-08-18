@@ -21,7 +21,7 @@ namespace Demo.Shaders
         public int o_color;
 
         [InputAttribute("f_color")]
-        public Vector4 inColor;
+        public Vector4 inColor = Vector4.One;
 
         public void Execute(ShaderFunctions func)
         {

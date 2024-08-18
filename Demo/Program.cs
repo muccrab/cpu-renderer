@@ -11,6 +11,7 @@ using System.Reflection;
 
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using CPU_Doom_File_Loader;
 
 namespace Demo
 {
@@ -36,8 +37,8 @@ namespace Demo
                 window.BindVertexArray(_vao);
                 _shader.SetUniform("u_time", time);
                 _shader.SetUniform("u_texture", texPos);
-                if (((int)time) % 2 == 0) _shader.GetTexture2d(texPos).SetFiltering(FilterMode.LINEAR);
-                else _shader.GetTexture2d(texPos).SetFiltering(FilterMode.NONE);
+                //if (((int)time) % 2 == 0) _shader.GetTexture2d(texPos).SetFiltering(FilterMode.LINEAR);
+                //else _shader.GetTexture2d(texPos).SetFiltering(FilterMode.NONE);
                 window.Draw(_shader);
                 window.UnbindVertexArray();
 
@@ -51,17 +52,45 @@ namespace Demo
         static void Start(Window3D window)
         {
             /*
-            byte[] vertices = new float[]
+            byte[] vertexPositions = new float[]
             {
-                -0.5f, -0.5f, -0.5f, 1, 1, 1, //0
-                +0.5f, -0.5f, -0.5f, 0, 1, 1, //1
-                -0.5f, -0.5f, +0.5f, 1, 0, 1, //2
-                +0.5f, -0.5f, +0.5f, 1, 1, 0, //3
-                -0.5f, +0.5f, -0.5f, 1, 0, 0, //4
-                +0.5f, +0.5f, -0.5f, 0, 1, 0, //5
-                -0.5f, +0.5f, +0.5f, 0, 0, 1, //6
-                +0.5f, +0.5f, +0.5f, 0, 0, 0, //7
+                -0.5f, -0.5f, -0.5f, //0
+                +0.5f, -0.5f, -0.5f, //1
+                -0.5f, -0.5f, +0.5f, //2
+                +0.5f, -0.5f, +0.5f, //3
+                -0.5f, +0.5f, -0.5f, //4
+                +0.5f, +0.5f, -0.5f, //5
+                -0.5f, +0.5f, +0.5f, //6
+                +0.5f, +0.5f, +0.5f, //7
             }.ToByteArray();
+
+            byte[] vertexColors = new float[]  
+            {
+                1, 1, 1, //0
+                0, 1, 1, //1
+                1, 0, 1, //2
+                1, 1, 0, //3
+                1, 0, 0, //4
+                0, 1, 0, //5
+                0, 0, 1, //6
+                0, 0, 0, //7
+            }.ToByteArray();
+
+            int[,] vertices = new int[8, 2];
+            for (int i = 0; i < 8; i++)
+            {
+                vertices[i, 0] = i;
+                vertices[i, 1] = i;
+            }
+
+
+
+
+            Stride stride = new Stride();
+            stride.AddEntry(PIXELTYPE.FLOAT, 3);
+            stride.AddEntry(PIXELTYPE.FLOAT, 3);
+
+            ParallelVertexBuffer vertexBuffer = new ParallelVertexBuffer(stride, new byte[][] { vertexPositions, vertexColors }, vertices);
 
 
             ElementBuffer indeces =
@@ -73,9 +102,11 @@ namespace Demo
                 2, 3, 6, 3, 6, 7, //BACK
                 4, 5, 6, 5, 6, 7, //TOP
             };
-            */
 
-            
+            _vao = new VertexArrayObject(indeces, vertexBuffer);
+            _shader = new ShaderProgram<BasicVertexShader, BasicFragmentShader>();
+            */
+            /*
             byte[] vertices = new float[]
             {
                 -0.0f, -1.0f, 0f, 0.5f, 0, //0
@@ -90,7 +121,7 @@ namespace Demo
             {
                 0, 1, 2, 1, 2, 3,
             };
-            
+            */
             /*
             byte[] vertices = new float[]
             {
@@ -113,6 +144,18 @@ namespace Demo
             };
             */
 
+
+
+            var vaos = ObjectLoader.LoadVAOsFromObjFile("pyramid.obj");
+            _vao = vaos[0];
+            _shader = new ShaderProgram<MonkeVertexShader, TextureFragmentShader>();
+            var texture = TextureLoader.Load2dTextureFromFile("obamna.png")
+                .SetWrapModeHorizontal(WrapMode.REVERSE).SetWrapModeVertical(WrapMode.REVERSE).SetFiltering(FilterMode.LINEAR);
+            texPos = _shader.SetTexture2d(texture, 0);
+
+
+
+            /*
             Stride stride = new Stride();
             stride.AddEntry(PIXELTYPE.FLOAT, 3); // Vertex Position
             stride.AddEntry(PIXELTYPE.FLOAT, 2); // Vertex Image Pos
@@ -132,7 +175,7 @@ namespace Demo
 
             FrameBuffer2d buffer = new FrameBuffer2d(imageArray, image.Width, image.Height, PIXELTYPE.RGBA32);
             texPos = _shader.SetTexture2d(new TextureBuffer2d(buffer).SetWrapModeHorizontal(WrapMode.REVERSE).SetWrapModeVertical(WrapMode.REVERSE).SetFiltering(FilterMode.LINEAR), 0);
-            
+            */
             window.DepthBufferingEnabled(true);
         }
 

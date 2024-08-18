@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace CPU_Doom
+﻿namespace CPU_Doom
 {
     public static class LinqExtensions
     {
@@ -25,8 +19,6 @@ namespace CPU_Doom
         public static bool HasExactlyOneElement<T>(this IEnumerable<T> en) => HasExactlyNElements(en, 1);
         public static bool HasNoElements<T>(this IEnumerable<T> en) => HasExactlyNElements(en, 0);
         public static bool HasElements<T>(this IEnumerable<T> en) => !HasExactlyNElements(en, 0);
-
-
         public static List<(T1?, T2?)> OuterJoin<T1, T2>(this IEnumerable<T1> e1, IEnumerable<T2> e2, Func<T1, T2, bool> cond)
         {
             HashSet<T2> unfoundedE2s = new HashSet<T2>(e2);

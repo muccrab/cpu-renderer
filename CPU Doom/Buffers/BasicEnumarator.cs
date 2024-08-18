@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections;
 
 namespace CPU_Doom.Buffers
 {
@@ -25,7 +20,6 @@ namespace CPU_Doom.Buffers
         public IEnumerator<TRet> GetEnumerator() => new BasicEnumarator<SizedEnum<TRet>, TRet>(this);
         IEnumerator IEnumerable.GetEnumerator() => new BasicEnumarator<SizedEnum<TRet>, TRet>(this);
     }
-
 
     public abstract class SizedSetEnum<TRet> : SizedEnum<TRet>, ISizedSetEnum<TRet>
     {
@@ -61,6 +55,4 @@ namespace CPU_Doom.Buffers
         int _pos = -1;
         TEnum _enum;
     }
-
-
 }

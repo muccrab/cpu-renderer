@@ -7,30 +7,27 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-
-
 namespace Demo.Shaders
 {
-    internal class BasicVertexShader : IVertexShader
+    internal class MonkeVertexShader : IVertexShader
     {
         public Vector4 Position { get; set; }
 
-        [UniformAttribute("cameraPos")]
-        public static Vector4d uniCameraPos;
-        [UniformAttribute("MVP")]
-        public static Vector4d uniMVP;
-
-
         [InputAttribute("in_position")]
-        public Vector4 inPosition;
-        [InputAttribute("in_color")]
-        public Vector4 inColor; 
+        public Vector3 inPosition;
+        [InputAttribute("in_Normal")]
+        public Vector3 inNormal;
+        [InputAttribute("in_UV")]
+        public Vector2 inUV;
 
         [UniformAttribute("u_time")]
         public static float uTime;
 
         [OutputAttribute("f_color")]
         public Vector4 outColor;
+
+        [OutputAttribute("f_texCoord")]
+        public Vector2 outTexCoord;
 
 
 
@@ -41,11 +38,13 @@ namespace Demo.Shaders
 
         public void Execute(ShaderFunctions func)
         {
-            inPosition.W = 1;
-            //inPosition.Z = 1;
             Matrix4 rotation = Matrix4.CreateRotationX(uTime) * Matrix4.CreateRotationY(uTime / 2);
-            Position = inPosition * rotation + new Vector4(0,0,1,0);
-            outColor = inColor; //+ new Vector4(uTime > 1 ? uTime - (int)uTime : uTime);
+            Position = new Vector4(inPosition,1.0f) * rotation + new Vector4(0, 0, 1, 0);
+            Vector4 normal = new Vector4(inNormal, 1.0f) * rotation;
+            outColor = Vector4.One * Math.Abs(Vector3.Dot(normal.Xyz.Normalized(), 
+                (new Vector3(1,-1,0) - Position.Xyz).Normalized()
+                ));
+            outTexCoord = inUV;
         }
     }
 }

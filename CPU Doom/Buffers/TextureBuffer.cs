@@ -1,12 +1,4 @@
 ﻿using CPU_Doom.Types;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Diagnostics.Contracts;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static SFML.Window.Keyboard;
 
 namespace CPU_Doom.Buffers
 {

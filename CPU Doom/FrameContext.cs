@@ -1,12 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace CPU_Doom
+﻿namespace CPU_Doom
 {
-
     public interface IUserFrameContext
     {
         IUserWindowTime Time {  get; } 
@@ -47,6 +40,4 @@ namespace CPU_Doom
         private DateTime _lastFrameTime = DateTime.Now;
         private DateTime _initTime = DateTime.Now;
     }
-
-
 }
