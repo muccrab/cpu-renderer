@@ -58,6 +58,7 @@ namespace CPU_Doom.Shaders
                 }
                 ver.Execute(_functions);
                 ver.Position = ver.Position / ver.Position.W; // Project to 3D space
+                ver.Position = new Vector4( ver.Position.X, -ver.Position.Y, ver.Position.Z, 1 );
             }
             return vertices;
         }
@@ -195,10 +196,8 @@ namespace CPU_Doom.Shaders
                         byte[] bufferZBytes = depthBuffer.Get(intY).Get(intX);
                         float bufferZ = bufferZBytes.ToFloat();
 
-                        if (posZ - bufferZ < 0)
-                        {
-                            return;
-                        }
+                        if (posZ < bufferZ) return;
+                        
                         depthBuffer.Get(intY).Set(intX, posZ.ToByteArray());
                     }
 

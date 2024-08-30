@@ -9,6 +9,8 @@ namespace CPU_Doom
 {
     public class Window3D
     {
+        public Action<KeyboardInput> KeyPress;
+        public Action<KeyboardInput> KeyReleased;
         public Window3D(int width, int height, string title, int renderBuffers = 2) 
         { 
             _window = CreateWindow(width, height, title);
@@ -63,11 +65,17 @@ namespace CPU_Doom
             _bindedArray = vao;
         }
         public void UnbindVertexArray() => BindVertexArray(null);
+
+        private void OnKeyPress(object? sender, KeyEventArgs e) => KeyPress(new KeyboardInput(sender, e));
+        private void OnKeyRelease(object? sender, KeyEventArgs e) => KeyReleased(new KeyboardInput(sender, e));
+
         private RenderWindow CreateWindow(int width, int height, string title)
         {
-            var window = new RenderWindow(new VideoMode((uint)width, (uint)height), "Doom-like Demo");
+            var window = new RenderWindow(new VideoMode((uint)width, (uint)height), title);
             _width = width; _height = height;
             window.Closed += (sender, e) => window.Close();
+            window.KeyPressed += OnKeyPress;
+            window.KeyReleased += OnKeyRelease;
             return window;
         }
         private VertexArrayObject? _bindedArray;
