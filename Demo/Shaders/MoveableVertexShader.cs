@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Demo.Shaders
 {
-    internal class MonkeVertexShader : IVertexShader
+    internal class MoveableVertexShader : IVertexShader
     {
         public Vector4 Position { get; set; }
 
@@ -23,9 +23,14 @@ namespace Demo.Shaders
         [UniformAttribute("u_time")]
         public static float uTime;
 
+        [UniformAttribute("u_Model")]
+        public static Matrix4 uModel;
 
+        [UniformAttribute("u_View")]
+        public static Matrix4 uView;
 
-
+        [UniformAttribute("u_Projection")]
+        public static Matrix4 uPerspective;
 
         [OutputAttribute("f_color")]
         public Vector4 outColor;
@@ -42,12 +47,10 @@ namespace Demo.Shaders
 
         public void Execute(ShaderFunctions func)
         {
-            Matrix4 rotation = Matrix4.CreateRotationX(uTime) * Matrix4.CreateRotationY(uTime / 2);
-            Position = new Vector4(inPosition,1.0f) * rotation + new Vector4(0, 0, 1, 0);
-            Vector4 normal = new Vector4(inNormal, 1.0f) * rotation;
-            outColor = Vector4.One * Math.Abs(Vector3.Dot(normal.Xyz.Normalized(), 
-                (new Vector3(1,-1,0) - Position.Xyz).Normalized()
-                ));
+            inPosition.X = -inPosition.X;
+            inPosition.Y = -inPosition.Y;
+            Position = new Vector4(inPosition, 1) * uModel * uView * uPerspective;
+            
             outTexCoord = inUV;
         }
     }

@@ -18,7 +18,6 @@ namespace Demo.Shaders
         public Vector4 inPosition;
         [InputAttribute("in_texCoord")]
         public Vector2 inTexCoord;
-
         [OutputAttribute("f_texCoord")]
         public Vector2 outTexCoord;
 

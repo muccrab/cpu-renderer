@@ -25,7 +25,7 @@ namespace Demo
             IFragmentShader<Vector4> inter = fragmentShader;
             Console.WriteLine(inter.GetType().GetField("DissableFloatConvertion", BindingFlags.Static | BindingFlags.Public).GetValue(null).ToString());
             */
-
+            /*
             Window3D window = new Window3D(320, 180, "Doom on CPU");
             Start(window);
             window.Update((context) =>
@@ -46,6 +46,12 @@ namespace Demo
                 window.SwitchBuffers();
                 //Console.WriteLine(time);
             });
+            */
+
+            GameController controller = new GameController();
+            
+
+
         }
 
 
