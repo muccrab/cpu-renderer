@@ -4,13 +4,27 @@ using SFML.Window;
 using CPU_Doom.Types;
 using OpenTK.Mathematics;
 using CPU_Doom.Shaders;
+using Logger;
 
 namespace CPU_Doom
 {
+    internal static class WindowStatic
+    {
+        public static AsyncLogger Logger { get; private set; }
+
+        static WindowStatic()
+        {
+            Logger = new AsyncLogger();
+        }
+    }
+
+
     public class Window3D
     {
+
         public Action<KeyboardInput> KeyPress;
         public Action<KeyboardInput> KeyReleased;
+
         public Window3D(int width, int height, string title, int renderBuffers = 2) 
         { 
             _window = CreateWindow(width, height, title);

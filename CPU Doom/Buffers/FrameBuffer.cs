@@ -9,19 +9,10 @@ namespace CPU_Doom.Buffers
         public int TypeLength => _typeLn;
         public PIXELTYPE PixelType { get; private set; }
         public byte[] Data { get {
-                byte[] ret = new byte[TypeLength * _width * _height];
                 var data = (from buffer in _subBuffers select buffer.Data);
-                int i = 0;
-                foreach (var dataBytes in data)
-                {
-                    foreach (var b in dataBytes)
-                    {
-                        ret[i] = (byte)b;
-                        i++;
-                    }
-                }
+                var ret = data.SelectMany(data => data).ToArray();
                 return ret;
-            } } //TODO: REDO FrameBuffer2d...This is not acceptable!!!!!
+            } }
         public FrameBuffer2d(int width, int height, PIXELTYPE type) 
         {
             _width = width;

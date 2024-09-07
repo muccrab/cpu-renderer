@@ -10,8 +10,8 @@ namespace CPU_Doom.Shaders
     {
         public abstract void Draw(FrameBuffer2d frameBuffer, VertexArrayObject vertexArray, FrameBuffer2d? depthBuffer);
         public abstract void SetUniform(string name, object value);
-        public abstract int SetTexture1d(TextureBuffer1d texture, int texturePos);
-        public abstract int SetTexture2d(TextureBuffer2d texture, int texturePos);
+        public abstract int SetTexture1d(TextureBuffer1d texture, int texturePos = -1);
+        public abstract int SetTexture2d(TextureBuffer2d texture, int texturePos = -1);
         public abstract TextureBuffer1d? GetTexture1d(int texturePos);
         public abstract TextureBuffer2d? GetTexture2d(int texturePos);
     }
@@ -23,7 +23,7 @@ namespace CPU_Doom.Shaders
         ShaderTextureHandler _textureHandler = new ShaderTextureHandler();
         ShaderFunctions _functions;
 
-        const int _FRAGTHREADS = 128;
+        const int _FRAGTHREADS = 1024;
         const bool _DEBUGMODE = true;
         TFRAG[] _fragShaders = new TFRAG[_FRAGTHREADS];
         public ShaderProgram()
@@ -253,7 +253,7 @@ namespace CPU_Doom.Shaders
 
         public override void SetUniform(string name, object value) => _linker.SetUniform(name, value);
         public override int SetTexture1d(TextureBuffer1d texture, int texturePos = -1) => _textureHandler.SetTexture1d(texture, texturePos);
-        public override int SetTexture2d(TextureBuffer2d texture, int texturePos) => _textureHandler.SetTexture2d(texture, texturePos);
+        public override int SetTexture2d(TextureBuffer2d texture, int texturePos = -1) => _textureHandler.SetTexture2d(texture, texturePos);
         public override TextureBuffer1d? GetTexture1d(int texturePos) => _textureHandler.GetTexture1d(texturePos);
         public override TextureBuffer2d? GetTexture2d(int texturePos) => _textureHandler?.GetTexture2d(texturePos);
     }

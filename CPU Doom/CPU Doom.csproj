@@ -13,4 +13,8 @@
     <PackageReference Include="SFML.Net" Version="2.6.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Logger\Logger.csproj" />
+  </ItemGroup>
+
 </Project>

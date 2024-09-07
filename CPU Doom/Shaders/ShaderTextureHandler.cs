@@ -15,7 +15,7 @@ namespace CPU_Doom.Shaders
             _textures.Add(texture);
             return _textures.Count - 1;
         }
-        public int SetTexture2d(TextureBuffer2d texture, int texturePos)
+        public int SetTexture2d(TextureBuffer2d texture, int texturePos = -1)
         {
             if (texturePos < _textures.Count && texturePos >= 0)
             {

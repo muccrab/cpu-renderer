@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using System.Text;
 
 namespace CPU_Doom.Shaders
 {
@@ -15,7 +16,12 @@ namespace CPU_Doom.Shaders
             _vertexType = vertexType;
             _fragmentType = fragmentType;
             LinkShaders();
-            if (_fragmentOutput == null) throw new ArgumentNullException("Fragment Shader must contain a output."); // After linking there should be an output assigned.
+            if (_fragmentOutput == null)
+            {
+                WindowStatic.Logger.LogError("Fragment Shader must contain a output.");
+                throw new ArgumentNullException("Fragment Shader must contain a output."); // After linking there should be an output assigned.
+            }
+            WindowStatic.Logger.LogSuccess($"Shaders {vertexType} and {fragmentType} have been successfully linked");
         }
 
         public List<FieldInfo> VertexInputs => _vertexInputs;
@@ -45,7 +51,11 @@ namespace CPU_Doom.Shaders
                 if (attribute.Location == -1) unspecifiedFields.Enqueue(field);
                 else
                 {
-                    if (specifiedFields.ContainsKey(attribute.Location)) return; // TODO: Exception + Logger
+                    if (specifiedFields.ContainsKey(attribute.Location))
+                    {
+                        WindowStatic.Logger.LogError("Shader Linking Error - Vertex Input Fields Error - Contains 2 Inputs with the same location");
+                        return; // TODO: Exception
+                    }
                     specifiedFields.Add(attribute.Location, field);
                 }
             }
@@ -72,18 +82,38 @@ namespace CPU_Doom.Shaders
                 var verOutAt = verInFragOut.verOut.GetCustomAttribute<OutputAttribute>();
                 var fragInAt = verInFragOut.fragIn.GetCustomAttribute<InputAttribute>();
                 if (verOutAt == null || fragInAt == null) continue; //Again pointless, but I won't get warnings
-                if (!verOut.FieldType.IsAssignableTo(fragIn.FieldType)) continue; // TODO: Logger
+                if (!verOut.FieldType.IsAssignableTo(fragIn.FieldType))
+                {
+                    StringBuilder builder = new StringBuilder()
+                        .Append("Shader Linking Error - Vertex Output: ")
+                        .Append(verOutAt.Name).Append(" ( ").Append(verOut.Name).Append(" ) ")
+                        .Append("is not compatible with Fragment Input: ")
+                        .Append(fragInAt.Name).Append(" ( ").Append(verOut.Name).Append(" )");
 
-                var shaderVar = new ShaderVariable(verOut, fragIn, SupportsFiltering(verOut.FieldType)); // TODO: Better Filtering check. Add check that 
+
+                    WindowStatic.Logger.LogWarn(builder.ToString()); 
+                    continue; 
+                } 
+
+                var shaderVar = new ShaderVariable(verOut, fragIn, SupportsFiltering(verOut.FieldType));
 
                 if (_linkedVariables.ContainsKey(verOutAt.Name)) continue; // Logger + Consider exception.
                 _linkedVariables[verOutAt.Name] = shaderVar;
             }
 
             // Process Fragment Output
-            if (!fragmentOutputs.HasExactlyOneElement()) return; // TODO: throw an exception. + Logger
+            if (!fragmentOutputs.HasExactlyOneElement()) 
+            {
+                WindowStatic.Logger.LogError("Shader Linking Error - Fragment Output Error - Fragment Shader must have at least and no more than one output attribute");
+                return; // TODO: Exception
+            }
+            
             var fragOut = fragmentOutputs.First();
-            if (!fragOut.FieldType.GetCustomAttributes(typeof(SerializableAttribute), true).Any()) return; // TODO: throw an exception. + Logger
+            if (!fragOut.FieldType.GetCustomAttributes(typeof(SerializableAttribute), true).Any())
+            {
+                WindowStatic.Logger.LogError("Shader Linking Error - Fragment Output Error - Output Attribute must be serializable");
+                return; // TODO: Exception
+            }
             _fragmentOutput = fragOut;
         }
 
@@ -103,10 +133,18 @@ namespace CPU_Doom.Shaders
             foreach (var uniform in verFragUniforms)
             {
                 ShaderUniform? linkedUniform = ShaderUniform.LinkUniform(uniform.Item1, uniform.Item2);
-                if (linkedUniform == null) continue; // TODO: Logger
-                var unAt = uniform.Item1?.GetCustomAttribute<UniformAttribute>();
-                if (unAt == null) unAt = uniform.Item2?.GetCustomAttribute<UniformAttribute>();
-                if (unAt == null) continue; // TODO: Logger
+                if (linkedUniform == null)
+                {
+                    FieldInfo? uniformInfo = uniform.Item1 ?? uniform.Item2;
+                    UniformAttribute? uniformAttribute = uniformInfo?.GetCustomAttribute<UniformAttribute>();
+                    string errormessage = "";
+                    if (uniformAttribute != null && uniformInfo != null) errormessage = $"Uniform { uniformAttribute.Name } (  { uniformInfo.Name }) couldn't be linked";  
+                    WindowStatic.Logger.LogWarn($"Shader Linking Error - Uniform Linking Error - {errormessage}");
+                    continue;
+                }
+                var unAt = uniform.Item1?.GetCustomAttribute<UniformAttribute>() ?? 
+                           uniform.Item2?.GetCustomAttribute<UniformAttribute>();
+                if (unAt == null) continue; // Never gonna happen, but I'm going to leave this here so compiller is satisfied
                 _uniforms.Add(unAt.Name, linkedUniform);
             }
         }
@@ -135,7 +173,9 @@ namespace CPU_Doom.Shaders
         public void SetUniform(string name, object value)
         {
             if (_uniforms.ContainsKey(name))
-                _uniforms[name].SetUniform(value); //TODO: Logger
+                _uniforms[name].SetUniform(value);
+            else
+                WindowStatic.Logger.LogWarn($"Shader Uniform Error - Uniform {name} is not found. Please make sure the uniform exists, or is static");
         }
       
         public class ShaderVariable
@@ -171,7 +211,7 @@ namespace CPU_Doom.Shaders
                 SetFieldsInUniform(vertexField, fragmentField, uniform, constructedType);
                 return uniform;
             }
-            private static Type? TryGetType(FieldInfo? vertexField, FieldInfo? fragmentField) // TODO: LOGGER!!!!!!!
+            private static Type? TryGetType(FieldInfo? vertexField, FieldInfo? fragmentField) 
             {
                 Type? vertexType = vertexField?.FieldType ?? null;
                 Type? fragmentType = fragmentField?.FieldType ?? null;
@@ -224,21 +264,26 @@ namespace CPU_Doom.Shaders
             private ShaderUniform() { }
             public override void SetUniform(object value)
             {
-                if (value is not UniformType) return; // TODO: LOGGER!!!!!!!
+                if (value is not UniformType)
+                {
+                    WindowStatic.Logger.LogWarn($"Uniform Error - Value: {value}  is not correct type: {typeof(UniformType).Name}");
+                    return;
+                }
                 SetField(vertexField, value);
                 SetField(fragmentField, value);
             }
             private void SetField(FieldInfo? field, object value)
             {
                 if (field == null) return;
-                else if (!field.IsStatic) return; // TODO: LOGGER!!!!!!!
                 try
                 {
                     field.SetValue(null, value);
+                    return;
                 }
                 catch (FieldAccessException) { }
                 catch (TargetException) { }
-                catch (ArgumentException) { } // TODO: Logger
+                catch (ArgumentException) { }
+                WindowStatic.Logger.LogWarn($"There was an unexpected error with setting of uniform {field.Name} with value {value}");
             }
         }
     }
