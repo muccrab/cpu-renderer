@@ -7,7 +7,6 @@ namespace CPU_Doom.Buffers
         public byte[] this[int key] => Get(key);
     }
 
-
     public struct StrideEntry
     {
         public int startOffset, typeLength, entryLength;
@@ -19,6 +18,7 @@ namespace CPU_Doom.Buffers
         }
     }
 
+    // Stride object that helps users tell vertexbuffer how data is stored for one vertex
     public class Stride
     {
         public int StrideLength { get; private set; } = 0;
@@ -33,6 +33,7 @@ namespace CPU_Doom.Buffers
         private List<StrideEntry> _stride = new List<StrideEntry>();
     }
 
+    // Basic Vertex buffer that stores all vertex information on one array
     public class VertexBuffer : SizedEnum<Vertex>
     {
         public override int Size => _size;

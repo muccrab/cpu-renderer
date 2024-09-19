@@ -12,7 +12,6 @@ namespace Demo.Base_Components
         PRESS, HOLD, RELEASE
     }
 
-
     internal class KeyboardMC : ObjectComponent
     {
         public override void Start()
@@ -73,9 +72,4 @@ namespace Demo.Base_Components
         HashSet<SFML.Window.Keyboard.Key> _holdedKeys = new HashSet<SFML.Window.Keyboard.Key>();
 
     }
-
-
-
-
-
 }

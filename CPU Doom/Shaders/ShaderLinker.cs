@@ -3,13 +3,13 @@ using System.Text;
 
 namespace CPU_Doom.Shaders
 {
+    // Helps Shader Program link Vertex Shader and Fragment Shader 
     internal class ShaderLinker
     {
-        Type _vertexType, _fragmentType;
-        List<FieldInfo> _vertexInputs = new List<FieldInfo>();
-        Dictionary<string, ShaderVariable> _linkedVariables = new Dictionary<string, ShaderVariable>(); // Dictionary for vertexOut/fragmentIn.
-        FieldInfo _fragmentOutput;
-        Dictionary<string, ShaderUniform> _uniforms = new Dictionary<string, ShaderUniform>();
+        public List<FieldInfo> VertexInputs => _vertexInputs; // All Input Properties of Vertex Shader
+        public Dictionary<string, ShaderVariable> LinkedVariables => _linkedVariables; // Linked Vertex Outputs -> Fragment Inputs
+        public FieldInfo FragmentOutput => _fragmentOutput; // Fragment Output Property
+        public Dictionary<string, ShaderUniform> Uniforms => _uniforms; // Shader Uniforms
 
         public ShaderLinker(Type vertexType, Type fragmentType)
         {
@@ -24,17 +24,12 @@ namespace CPU_Doom.Shaders
             WindowStatic.Logger.LogSuccess($"Shaders {vertexType} and {fragmentType} have been successfully linked");
         }
 
-        public List<FieldInfo> VertexInputs => _vertexInputs;
-        public Dictionary<string, ShaderVariable> LinkedVariables => _linkedVariables;
-        public FieldInfo FragmentOutput => _fragmentOutput;
-        public Dictionary<string , ShaderUniform> Uniforms => _uniforms;
-
         private void LinkShaders()
         {
             LinkVariables();
             LinkUniforms();
         }
-        private void LinkVariables()
+        private void LinkVariables() //TODO: SPlit this method
         {
             // Get Input and Output Variables
             GetInputOutputFields(_vertexType, out IEnumerable<FieldInfo> vertexInputs, out IEnumerable<FieldInfo> vertexOutputs);
@@ -148,7 +143,7 @@ namespace CPU_Doom.Shaders
                 _uniforms.Add(unAt.Name, linkedUniform);
             }
         }
-        private void GetInputOutputFields(Type type, out IEnumerable<FieldInfo> inputs, out IEnumerable<FieldInfo> outputs)
+        private void GetInputOutputFields(Type type, out IEnumerable<FieldInfo> inputs, out IEnumerable<FieldInfo> outputs) 
         {
             FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
             inputs = (from field in fields where (field.GetCustomAttribute(typeof(InputAttribute)) != null) && field.FieldType.IsValueType select field);
@@ -166,9 +161,11 @@ namespace CPU_Doom.Shaders
                 }
             );
         }
+
+        // Checks if type can be filtered by the shader program
         private static bool SupportsFiltering(Type type) =>
             type.GetMethod("op_Multiply", BindingFlags.Static | BindingFlags.Public, null, new[] { typeof(float), type }, null)?.ReturnType == type &&
-            type.GetMethod("op_Addition", BindingFlags.Static | BindingFlags.Public, null, new[] { type, type }, null)?.ReturnType == type;
+            type.GetMethod("op_Addition", BindingFlags.Static | BindingFlags.Public, null, new[] { type, type }, null)?.ReturnType == type; 
 
         public void SetUniform(string name, object value)
         {
@@ -177,7 +174,14 @@ namespace CPU_Doom.Shaders
             else
                 WindowStatic.Logger.LogWarn($"Shader Uniform Error - Uniform {name} is not found. Please make sure the uniform exists, or is static");
         }
-      
+
+        private Type _vertexType, _fragmentType;
+        private List<FieldInfo> _vertexInputs = new List<FieldInfo>(); // All Input Properties of Vertex Shader
+        private Dictionary<string, ShaderVariable> _linkedVariables = new Dictionary<string, ShaderVariable>(); // Dictionary for vertexOut/fragmentIn.
+        private FieldInfo _fragmentOutput; // Fragment Output Property
+        private Dictionary<string, ShaderUniform> _uniforms = new Dictionary<string, ShaderUniform>(); // Shader Uniforms
+
+        // Class For Linked Shader Variables
         public class ShaderVariable
         {
             public FieldInfo VertexField { get; private init; }
@@ -196,10 +200,10 @@ namespace CPU_Doom.Shaders
             public abstract void SetUniform(object value);
             public static ShaderUniform? LinkUniform(FieldInfo? vertexField, FieldInfo? fragmentField)
             {
-                Type? uniformType = TryGetType(vertexField, fragmentField);
+                Type? uniformType = TryGetType(vertexField, fragmentField); // Get's Type from vertexField
                 if (uniformType == null) return null;
 
-                Type constructedType;
+                Type constructedType; // Shader Uniform For Specific Type
                 if (!_constructedUniformCache.ContainsKey(uniformType))
                 {
                     Type genericuniform = typeof(ShaderUniform<>);
@@ -207,8 +211,7 @@ namespace CPU_Doom.Shaders
                     _constructedUniformCache.Add(uniformType, constructedType);
                 }
                 else constructedType = _constructedUniformCache[uniformType];
-                ShaderUniform? uniform = (ShaderUniform?)Activator.CreateInstance(constructedType, true);
-                SetFieldsInUniform(vertexField, fragmentField, uniform, constructedType);
+                ShaderUniform? uniform = (ShaderUniform?)Activator.CreateInstance(constructedType, vertexField, fragmentField); // Creates Uniform Object for specific Type
                 return uniform;
             }
             private static Type? TryGetType(FieldInfo? vertexField, FieldInfo? fragmentField) 
@@ -221,47 +224,23 @@ namespace CPU_Doom.Shaders
                 else if (vertexNull) { return fragmentType; }
                 else if (fragmentNull) { return vertexType; }
                 else if (vertexType == fragmentType) { return vertexType; }
+                WindowStatic.Logger.LogWarn("Couldn't Find the type for the uniform");
                 return null;
             }
-            private class ConstructedTypeProperties
-            {
-                public PropertyInfo VertexFieldProperty { get; init; }
-                public PropertyInfo FragmentFieldProperty { get; init; }
-                public ConstructedTypeProperties(Type cType)
-                {
-                    PropertyInfo? vertexFieldProperty = cType.GetProperty("vertexField");
-                    PropertyInfo? fragmentFieldProperty = cType.GetProperty("fragmentField");
-                    if (vertexFieldProperty == null || fragmentFieldProperty == null)
-                    {
-                        throw new MissingFieldException("The property for vertexField and fragmentField does not exists in ShaderUniform Class");
-                    }
-                    VertexFieldProperty = vertexFieldProperty;
-                    FragmentFieldProperty = fragmentFieldProperty;
-                }
-
-            }
-            private static void SetFieldsInUniform(FieldInfo? vertexField, FieldInfo? fragmentField, ShaderUniform? uniform, Type constructedType)
-            {
-                if (uniform == null) return;
-                ConstructedTypeProperties properties;
-                if (!_constructedTypePropertyCache.ContainsKey(constructedType))
-                {
-                    properties = new ConstructedTypeProperties(constructedType);
-                    _constructedTypePropertyCache.Add(constructedType, properties);
-                }
-                else properties = _constructedTypePropertyCache[constructedType];
-                properties.VertexFieldProperty.SetValue(uniform, vertexField);
-                properties.FragmentFieldProperty.SetValue(uniform, fragmentField);
-            }
+          
             static Dictionary<Type, Type> _constructedUniformCache = new Dictionary<Type, Type>();
-            static Dictionary<Type, ConstructedTypeProperties> _constructedTypePropertyCache = new Dictionary<Type, ConstructedTypeProperties>();
         }
 
+        // Shader Uniform For Specific Type
         private class ShaderUniform<UniformType> : ShaderUniform where UniformType : struct
         {
-            public FieldInfo? vertexField { get; private set; }
-            public FieldInfo? fragmentField { get; private set; }
-            private ShaderUniform() { }
+            public FieldInfo? VertexField { get; private set; }
+            public FieldInfo? FragmentField { get; private set; }
+            public ShaderUniform(FieldInfo? vertexField, FieldInfo? fragmentField) 
+            {
+                VertexField = vertexField;
+                FragmentField = fragmentField;
+            }
             public override void SetUniform(object value)
             {
                 if (value is not UniformType)
@@ -269,8 +248,8 @@ namespace CPU_Doom.Shaders
                     WindowStatic.Logger.LogWarn($"Uniform Error - Value: {value}  is not correct type: {typeof(UniformType).Name}");
                     return;
                 }
-                SetField(vertexField, value);
-                SetField(fragmentField, value);
+                SetField(VertexField, value);
+                SetField(FragmentField, value);
             }
             private void SetField(FieldInfo? field, object value)
             {
@@ -286,5 +265,6 @@ namespace CPU_Doom.Shaders
                 WindowStatic.Logger.LogWarn($"There was an unexpected error with setting of uniform {field.Name} with value {value}");
             }
         }
+
     }
 }

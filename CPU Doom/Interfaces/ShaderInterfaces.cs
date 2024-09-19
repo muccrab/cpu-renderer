@@ -3,6 +3,7 @@ using OpenTK.Mathematics;
 
 namespace CPU_Doom.Interfaces
 {
+    // Interfaces for Shader Classes
     public interface IShader { }
 
     public interface IVertexShader : IShader
@@ -11,7 +12,8 @@ namespace CPU_Doom.Interfaces
         public void Execute(ShaderFunctions func);
     }
 
-    public interface IFragmentShader : IShader {
+    public interface IFragmentShader : IShader 
+    {
         public const bool DissableFloatConvertion = false;
         public void Execute(ShaderFunctions func);
     }

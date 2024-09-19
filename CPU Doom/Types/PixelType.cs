@@ -11,6 +11,7 @@ namespace CPU_Doom.Types
         RGB24, RGBA32,
     }
 
+    // Normal and Extension methods that help users work with specific types
     public static class PixelTypeConverter
     {
         public static int GetSize(PIXELTYPE pixelType)

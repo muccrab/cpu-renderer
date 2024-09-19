@@ -1,10 +1,5 @@
 ﻿using CPU_Doom.Shaders;
 using OpenTK.Mathematics;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Demo
 {
@@ -44,7 +39,7 @@ namespace Demo
             return model;
         }
 
-        public void SetShader(ShaderProgram shader)
+        protected override void OnSetShader(ShaderProgram shader)
         {
             var model = GetModelMatrix();
             shader.SetUniform("u_Model", model);

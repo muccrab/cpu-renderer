@@ -2,6 +2,7 @@
 
 namespace CPU_Doom.Shaders
 {
+    // Helps shader program with Texture work
     internal class ShaderTextureHandler
     {
         public int SetTexture1d(TextureBuffer1d texture, int texturePos = -1)

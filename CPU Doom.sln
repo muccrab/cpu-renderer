@@ -9,7 +9,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Demo", "Demo\Demo.csproj", 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tests", "Tests\Tests.csproj", "{F2A08FBF-383E-46BE-9A65-D9A256ACD36E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CPU Doom File Loader", "CPU Doom File Loader\CPU Doom File Loader.csproj", "{84C38E54-62D7-47B3-AF03-66A220360841}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CPU Doom File Loader", "CPU Doom File Loader\CPU Doom File Loader.csproj", "{84C38E54-62D7-47B3-AF03-66A220360841}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Logger", "Logger\Logger.csproj", "{25300C27-606B-4ACD-B5C3-975CAF97AFDE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{84C38E54-62D7-47B3-AF03-66A220360841}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{84C38E54-62D7-47B3-AF03-66A220360841}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{84C38E54-62D7-47B3-AF03-66A220360841}.Release|Any CPU.Build.0 = Release|Any CPU
+		{25300C27-606B-4ACD-B5C3-975CAF97AFDE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{25300C27-606B-4ACD-B5C3-975CAF97AFDE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{25300C27-606B-4ACD-B5C3-975CAF97AFDE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{25300C27-606B-4ACD-B5C3-975CAF97AFDE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

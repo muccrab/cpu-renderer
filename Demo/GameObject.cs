@@ -1,19 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.Design;
-using System.Formats.Tar;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Demo
+﻿namespace Demo
 {
-
+    // 
     internal class GameObject
     {
-        const string TRANSFORM = "transform";
+        const string TRANSFORM = "transform"; // name of transform component in GameObject 
         public LogicController? LogicController => _logicController;
-        public GameController? GameController => _logicController?.GameController;
+        public GameController? GameController => _logicController?.GameController;  
         public GameObject? Parent => _parent;
         public Transform3D Transform { get; private set; }
         public GameObject() {

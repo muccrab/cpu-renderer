@@ -8,6 +8,7 @@ using Logger;
 
 namespace CPU_Doom
 {
+    // Static Properties For CPU Renderer
     internal static class WindowStatic
     {
         public static AsyncLogger Logger { get; private set; }
@@ -18,21 +19,26 @@ namespace CPU_Doom
         }
     }
 
-
+    // Main Window Class For CPU Renderer
     public class Window3D
     {
-
         public Action<KeyboardInput> KeyPress;
         public Action<KeyboardInput> KeyReleased;
 
+        // renderBuffers are main buffers that the renderer renders to.
+        // It is recommended to keep this value to 2 and switch between them.
         public Window3D(int width, int height, string title, int renderBuffers = 2) 
-        { 
+        {
+            KeyPress += (x) => { }; //Compiller was angry at me that I kept these without declaration.
+            KeyReleased += (x) => { };
+
             _window = CreateWindow(width, height, title);
             _buffers = new FrameBuffer2d[renderBuffers];
             for (int i = 0; i < renderBuffers; i++) _buffers[i] = new FrameBuffer2d(width, height, PIXELTYPE.RGBA32);
             _depthBuffer = new FrameBuffer2d(_width, _height, PIXELTYPE.FLOAT);
         }
-        public void Update(Action<IUserFrameContext> loop) 
+        // Runs action in loop until the window closes
+        public void Update(Action<IUserFrameContext> loop)  
         {
             FrameContext frameContext = new FrameContext(new WidnowTime());
             while (_window.IsOpen)
@@ -47,6 +53,10 @@ namespace CPU_Doom
             _buffers[_currentBuffer].Clear(clearColor);
         }
         public void ClearCurrentBuffer(System.Drawing.Color clearColor)
+        {
+            _buffers[_currentBuffer].Clear(clearColor);
+        }
+        public void ClearCurrentBuffer(byte[] clearColor)
         {
             _buffers[_currentBuffer].Clear(clearColor);
         }
@@ -69,6 +79,7 @@ namespace CPU_Doom
             _window.Draw(sprite);
             _window.Display();
         }
+        // Draws binded vertex array to current framebuffer using given shader program
         public void Draw(ShaderProgram program)
         {
             if (_bindedArray == null) return;

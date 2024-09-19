@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using CPU_Doom.Interfaces;
+﻿using CPU_Doom.Interfaces;
 using CPU_Doom.Shaders;
 using CPU_Doom.Types;
 using OpenTK.Mathematics;

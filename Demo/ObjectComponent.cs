@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
+﻿using CPU_Doom.Shaders;
 
 namespace Demo
 {
@@ -29,6 +24,11 @@ namespace Demo
         public virtual void Update() { }
         public virtual void Destroy() { }
 
+        public void SetShader(ShaderProgram shader) 
+        {
+            if (Active) OnSetShader(shader);
+        }
+        protected virtual void OnSetShader(ShaderProgram shader) { }
 
         protected virtual void OnDeactivate() { }
         protected virtual void OnActivate() { }

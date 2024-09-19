@@ -2,6 +2,7 @@
 
 namespace CPU_Doom.Shaders
 {
+    // Functions that can be used by shaders
     public class ShaderFunctions
     {
         public ShaderFunctions(ShaderProgram program) 

@@ -13,6 +13,7 @@ namespace CPU_Doom.Buffers
         public void Set(int key, TRet value);
     }
 
+    // Enumerable that has size parameter in constant time 
     public abstract class SizedEnum<TRet> : ISizedEnum<TRet>
     {
         public abstract int Size { get; }
@@ -21,11 +22,13 @@ namespace CPU_Doom.Buffers
         IEnumerator IEnumerable.GetEnumerator() => new BasicEnumarator<SizedEnum<TRet>, TRet>(this);
     }
 
+    // Enumerable that can be set as well
     public abstract class SizedSetEnum<TRet> : SizedEnum<TRet>, ISizedSetEnum<TRet>
     {
         public abstract void Set(int key, TRet value);
     }
 
+    // Premade Enumerator For SizedEnums
     public class BasicEnumarator<TEnum ,TRet> : IEnumerator<TRet> where TEnum : ISizedEnum<TRet> 
     {
         public BasicEnumarator(TEnum enumerable)
@@ -38,7 +41,7 @@ namespace CPU_Doom.Buffers
             {
                 if (_pos == -1) throw new InvalidOperationException("Enumerator is uninitialized");
                 if (_pos >= _enum.Size) throw new InvalidOperationException("Enumerator has gone through the collection");
-                return _enum.Get(_pos);
+                return _enum.Get(_pos); 
             }
         }
         object? IEnumerator.Current => Current;
@@ -52,7 +55,7 @@ namespace CPU_Doom.Buffers
         {
             _pos = -1;
         }
-        int _pos = -1;
-        TEnum _enum;
+        int _pos = -1; // Position of the current Enumerator in the enumerable
+        TEnum _enum; // Enumerable of the Enumerator
     }
 }

@@ -1,10 +1,6 @@
 ﻿using CPU_Doom.Shaders;
 using OpenTK.Mathematics;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 
 namespace Demo.Base_Components
 {
@@ -40,7 +36,7 @@ namespace Demo.Base_Components
             logic.RemoveCamera(this);
         }
 
-        public void SetShader(ShaderProgram shader) 
+        protected override void OnSetShader(ShaderProgram shader) 
         {
             if (ParentObject == null) return;
             Matrix4 projection = Matrix4.CreatePerspectiveFieldOfView(FieldOfView * MathF.PI / 180, ASPECT, DepthNear, DepthFar);

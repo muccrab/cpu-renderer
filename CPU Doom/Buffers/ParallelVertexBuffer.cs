@@ -1,14 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace CPU_Doom.Buffers
+﻿namespace CPU_Doom.Buffers
 {
+    // Vertex Buffer that has each vertex data stored in separate array
     public class ParallelVertexBuffer : SizedEnum<Vertex>
     {
-        public override int Size => _size;
+        public override int Size => _size; // All separate vertices stored
         public ParallelVertexBuffer(Stride stride, byte[][] data, int[,] indices)
         {
             _Stride = stride;
@@ -23,6 +18,7 @@ namespace CPU_Doom.Buffers
         int[,] _indices;
         int _size;
 
+        // A single vertex that can be used to obtain data at different position
         public class ParallelVertex : Vertex
         {
             public ParallelVertex(int indexStart, ParallelVertexBuffer buffer)

@@ -1,16 +1,9 @@
-﻿global using ElementBuffer = int[];
-using CPU_Doom;
+﻿using CPU_Doom;
 using CPU_Doom.Buffers;
 using CPU_Doom.Shaders;
-using CPU_Doom.Interfaces;
-using CPU_Doom.Types;
 
 using Demo.Shaders;
-using OpenTK.Mathematics;
-using System.Reflection;
 
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 using CPU_Doom_File_Loader;
 
 namespace Demo
@@ -47,12 +40,15 @@ namespace Demo
                 //Console.WriteLine(time);
             });
             */
-
-            GameController controller = new GameController();
             
 
 
+            GameController controller = new GameController();
+
+
+
         }
+
 
 
         static void Start(Window3D window)

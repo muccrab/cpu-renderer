@@ -1,5 +1,7 @@
 ﻿namespace CPU_Doom.Shaders
 {
+    // Attributes For Shader Properties.
+
     [AttributeUsage(AttributeTargets.Field, AllowMultiple = false)]
     public abstract class BasicShaderAttribute : Attribute
     {
@@ -9,7 +11,7 @@
 
     public class InputAttribute : BasicShaderAttribute 
     {
-        public int Location { get; set; } // If location = -1, then it will be automatically set based on position in shader. In Fragment shader position is irrelevant.
+        public int Location { get; set; } // If location = -1, then it will be automatically set based on position in shader. In Fragment shader, position is irrelevant.
         public InputAttribute(string name, int location = -1) : base(name) => Location = location;
     }
 

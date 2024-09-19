@@ -7,10 +7,15 @@ using CPU_Doom.Types;
 
 namespace CPU_Doom_File_Loader
 {
+    // 3D Object Loader From OBJ Files
     public static class ObjectLoader
     {
+
+        static Dictionary<string, List<VertexArrayObject>> _objectCache = new Dictionary<string, List<VertexArrayObject>>();
+
         public static List<VertexArrayObject> LoadVAOsFromObjFile(string objFile)
         {
+            if (_objectCache.ContainsKey(objFile)) return _objectCache[objFile];
             
             ObjFileFormat fileFormat = new ObjFileFormat();
             Scene scene = fileFormat.LoadData(objFile);
@@ -60,6 +65,7 @@ namespace CPU_Doom_File_Loader
 
                 vaos.Add(new VertexArrayObject(faceIndices, vertexBuffer));
             }
+            _objectCache[objFile] = vaos;
             return vaos;
         }
 

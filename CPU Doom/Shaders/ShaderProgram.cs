@@ -3,6 +3,7 @@ using CPU_Doom.Interfaces;
 using CPU_Doom.Types;
 using System.Reflection;
 using OpenTK.Mathematics;
+using SFML.Graphics;
 
 namespace CPU_Doom.Shaders
 {
@@ -16,16 +17,16 @@ namespace CPU_Doom.Shaders
         public abstract TextureBuffer2d? GetTexture2d(int texturePos);
     }
 
-    public class ShaderProgram<TVER, TFRAG> : ShaderProgram where TVER : IVertexShader, new() where TFRAG : IFragmentShader, new()//Connect Vertex and Fragment Shaders.
+    public class ShaderProgram<TVER, TFRAG> : ShaderProgram where TVER : IVertexShader, new() where TFRAG : IFragmentShader, new()
     {
-        Type _vertexType, _fragmentType;
-        ShaderLinker _linker;
-        ShaderTextureHandler _textureHandler = new ShaderTextureHandler();
-        ShaderFunctions _functions;
+        private Type _vertexType, _fragmentType; // types of vertex and fragment shaders
+        private ShaderLinker _linker; 
+        private ShaderTextureHandler _textureHandler = new ShaderTextureHandler(); 
+        private ShaderFunctions _functions; 
 
-        const int _FRAGTHREADS = 1024;
-        const bool _DEBUGMODE = true;
-        TFRAG[] _fragShaders = new TFRAG[_FRAGTHREADS];
+        const int _FRAGTHREADS = 1024; // Number of threads fragment shader will work on
+        const bool _DEBUGMODE = true; // Debug Constant to run Fragment Shader in one thread
+        TFRAG[] _fragShaders = new TFRAG[_FRAGTHREADS]; // array for fragment shader for one specific thread.
         public ShaderProgram()
         {
             _vertexType = typeof(TVER);
@@ -34,7 +35,9 @@ namespace CPU_Doom.Shaders
             _functions = new ShaderFunctions(this);
             _fragShaders = (from _ in Enumerable.Range(0, _FRAGTHREADS) select new TFRAG()).ToArray();
         }
-        public override void Draw(FrameBuffer2d frameBuffer, VertexArrayObject vertexArray, FrameBuffer2d? depthBuffer)
+
+        // draw vertex array object to framebuffer using shader
+        public override void Draw(FrameBuffer2d frameBuffer, VertexArrayObject vertexArray, FrameBuffer2d? depthBuffer) 
         {
             TVER[] vertices = RunVertex(vertexArray);
             RunFragment(vertices, vertexArray, frameBuffer, depthBuffer);
@@ -45,7 +48,7 @@ namespace CPU_Doom.Shaders
             int vertexCount = vertexArray.Vertices.Size;
             TVER[] vertices = new TVER[vertexCount];
 
-            for (int i = 0; i < vertexCount; ++i)
+            for(int i = 0; i < vertexCount; ++i)
             {
                 var vertex = vertexArray.Vertices.Get(i);
                 TVER ver = vertices[i] = new TVER();
@@ -85,7 +88,7 @@ namespace CPU_Doom.Shaders
                     ca = posA - posC;
                 }
                 SetUpFrag();
-                if (MathVec.Vec2Cross(ab, bc) > 0)
+                if (MathVec.Vec2Cross(ab, bc) > 0) // If vertices are in wrong order, switch and setup again
                 {
                     TVER tmp = B;
                     B = C;
@@ -137,7 +140,7 @@ namespace CPU_Doom.Shaders
                             float globalX = minX + localX;
                             float globalY = minY + localY;
 
-                            SetOneFragment(globalX, globalY, triangleArea, data, A, B, C, frameBuffer, depthBuffer, shader);
+                            RunOneFragment(shader, globalX, globalY, triangleArea, data, A, B, C, frameBuffer, depthBuffer);
                         }
                     });
                 }
@@ -151,40 +154,45 @@ namespace CPU_Doom.Shaders
                         float x = minX + iX;
                         float y = minY + iY;
 
-                        SetOneFragment(x, y, triangleArea, data, A, B, C, frameBuffer, depthBuffer, shader);
+                        RunOneFragment(shader, x, y, triangleArea, data, A, B, C, frameBuffer, depthBuffer);
                     }
                 }
             }
         }
-        int debugCounter = 0;
-        private void SetOneFragment(float x, float y, float triangleArea, TriangleData data, TVER A, TVER B, TVER C, FrameBuffer2d frameBuffer, FrameBuffer2d? depthBuffer, TFRAG fragmentShader)
+        
+        // Sets up and runs one fragment shader
+        private void RunOneFragment(TFRAG fragmentShader, float x, float y, float triangleArea, TriangleData data, TVER A, TVER B, TVER C, FrameBuffer2d frameBuffer, FrameBuffer2d? depthBuffer)
         {
             Vector2 point = new Vector2(x, y);
             CrossProducts products = GetCrossProducts(data, point);
             if (IsInsideTriangle(products))
             {
+                // calculates areas for parts of the tringle
                 float alpha = products.cA / triangleArea;
                 float beta = products.cB / triangleArea;
                 float gamma = products.cC / triangleArea;
-                foreach (var verOutFragOut in _linker.LinkedVariables.Values)
+                // Interpolates vertex Outputs to Fragment Inputs
+                foreach (var verOutFragIn in _linker.LinkedVariables.Values)
                 {
-                    if (verOutFragOut == null) continue;
+                    if (verOutFragIn == null) continue;
 
-                    object? valueA = verOutFragOut.VertexField.GetValue(A);
-                    object? valueB = verOutFragOut.VertexField.GetValue(B);
-                    object? valueC = verOutFragOut.VertexField.GetValue(C);
+                    object? valueA = verOutFragIn.VertexField.GetValue(A);
+                    object? valueB = verOutFragIn.VertexField.GetValue(B);
+                    object? valueC = verOutFragIn.VertexField.GetValue(C);
                     if (valueA == null || valueB == null || valueC == null) continue;
 
-                    bool filtering = verOutFragOut.FileringEnabled;
+                    bool filtering = verOutFragIn.FileringEnabled;
 
                     object fragValue = FilterTriangle(alpha, beta, gamma, valueA, valueB, valueC, ref filtering);
 
-                    verOutFragOut.FileringEnabled = filtering;
+                    verOutFragIn.FileringEnabled = filtering;
 
-                    object realFragValue = Convert.ChangeType(fragValue, verOutFragOut.FragmentField.FieldType);
-                    verOutFragOut.FragmentField.SetValue(fragmentShader, realFragValue);
+                    object realFragValue = Convert.ChangeType(fragValue, verOutFragIn.FragmentField.FieldType);
+                    verOutFragIn.FragmentField.SetValue(fragmentShader, realFragValue);
                 }
+                // Execute Fragment Shader
                 fragmentShader.Execute(_functions);
+                // Draw fragment output to buffer. Apply Depth Filtering
                 object? fragOutput = _linker.FragmentOutput.GetValue(fragmentShader);
                 if (fragOutput != null)
                 {
@@ -227,13 +235,14 @@ namespace CPU_Doom.Shaders
 
             return new CrossProducts
             {
-                    cC = MathVec.Vec2Cross(pA, data.AB),
-                    cA = MathVec.Vec2Cross(pB, data.BC),
-                    cB = MathVec.Vec2Cross(pC, data.CA) 
+                cC = MathVec.Vec2Cross(pA, data.AB), // Area that influents value from vertex C
+                cA = MathVec.Vec2Cross(pB, data.BC), // Area that influents value from vertex A
+                cB = MathVec.Vec2Cross(pC, data.CA)  // Area that influents value from vertex B  
             };
         }
-        private bool IsInsideTriangle(CrossProducts products) => products.cA < 0 && products.cB < 0 && products.cC < 0;
+        private bool IsInsideTriangle(CrossProducts products) => products.cA < 0 && products.cB < 0 && products.cC < 0; 
 
+        // Tries to apply filtering, if it can't, dissables filter for next itteration and returns value of the vertex with maximum influence
         private object FilterTriangle(float coefA, float coefB, float coefC, dynamic a, dynamic b, dynamic c, ref bool supportsFilter) 
         {
             if (supportsFilter)

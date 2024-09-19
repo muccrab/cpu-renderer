@@ -2,19 +2,14 @@
 using CPU_Doom.Buffers;
 using CPU_Doom.Shaders;
 using Demo.Base_Components;
-using SFML.Window;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Demo
 {
+    // Main Controller of the Game Engine
     internal class GameController
     {
-        public const int WIDTH = 300;
-        public const int HEIGHT = 180;
+        public const int WIDTH = 700;
+        public const int HEIGHT = 360;
         const string TITLE = "Game";
 
         public KeyboardManager KeyboardManager => _keyboardManager;
@@ -27,6 +22,7 @@ namespace Demo
 
             var scene = new GameObject();
             scene.AddComponent(new Mesh());
+            scene.AddComponent(new Texture());
 
             var cameraObj = new GameObject();
             cameraObj.SetParent(scene);

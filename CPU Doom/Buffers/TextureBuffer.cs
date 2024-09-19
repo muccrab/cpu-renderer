@@ -12,7 +12,8 @@ namespace CPU_Doom.Buffers
         LINEAR, NONE
     }
 
-    public static class TextureBufferFunc
+    // Fuction class that is used for texture operations
+    internal static class TextureBufferFunc
     {
         public static float ApplyWrap(WrapMode wrap, float value)
         {
@@ -53,6 +54,7 @@ namespace CPU_Doom.Buffers
         }
     }
 
+    // 1D Texture Buffer (Wrapper class for FrameBuffer)
     public class TextureBuffer1d : SizedEnum<byte[]>
     {
         public override int Size => _buffer.Size;
@@ -72,13 +74,16 @@ namespace CPU_Doom.Buffers
             return this;
         }
         public byte[] this[int key] => Get(key);
-        public byte[] GetPixel(float key)
+        public byte[] GetPixel(float key) // Gets Pixel Wrapped and Filtered
         {
             key = TextureBufferFunc.ApplyWrap(_wrap, key);
             key *= _buffer.Size - 1;
             return GetFiltered(key);
         }
         public override byte[] Get(int key) => _buffer.Get(key);
+
+        public TextureBuffer1d Copy() => new TextureBuffer1d(_buffer.Copy()).SetWrapMode(_wrap).SetFiltering(_filter);
+
         private byte[] GetFiltered(float value)
         {
             switch(_filter) 
@@ -111,6 +116,7 @@ namespace CPU_Doom.Buffers
         FilterMode _filter;
     }
 
+    // 2D Texture Buffer
     public class TextureBuffer2d : SizedEnum<FrameBuffer>
     {
         public override int Size => _buffer.Size;
@@ -135,7 +141,12 @@ namespace CPU_Doom.Buffers
             return this;
         }
         public FrameBuffer this[int key] => Get(key);
-        public byte[] GetPixel(float keyX, float keyY)
+
+        public TextureBuffer2d Copy() => new TextureBuffer2d(_buffer.Copy()).SetWrapModeHorizontal(_wrapHorizontal)
+                                                                            .SetWrapModeVertical(_wrapVertical)
+                                                                            .SetFiltering(_filter);
+
+        public byte[] GetPixel(float keyX, float keyY) // Get Pixel Wrapped and Filtered
         {
             keyX = TextureBufferFunc.ApplyWrap(_wrapHorizontal,keyX);
             keyY = TextureBufferFunc.ApplyWrap(_wrapVertical, keyY);
@@ -156,9 +167,11 @@ namespace CPU_Doom.Buffers
             int flooredKeyX = (int)keyX;
             int flooredKeyY = (int)keyY;
 
+            // If keys are on the top corner return without filterring
             if (flooredKeyX == _buffer.RowSize - 1 && flooredKeyY == _buffer.Size - 1) 
                 return _buffer[(int)keyY][(int)keyX];
             
+            // Lineary filter if the key is on the last row or column
             if (flooredKeyX == _buffer.RowSize - 1)
             {
                 byte[] dataFrom = _buffer[flooredKeyY][flooredKeyX];
@@ -190,6 +203,7 @@ namespace CPU_Doom.Buffers
                 else BilinearFail(flooredKeyX, flooredKeyY);
             }
 
+            // Else try apply Billinear Filtering
             byte[] libLeftData   = _buffer[flooredKeyY][flooredKeyX];             // Down-Left of a Texture
             byte[] libRightData  = _buffer[flooredKeyY][flooredKeyX + 1];         // Down-Right of a Texture
             byte[] authLeftData  = _buffer[flooredKeyY + 1][flooredKeyX];         // Up-Left of a Texture
@@ -209,6 +223,7 @@ namespace CPU_Doom.Buffers
         }
         private byte[] BilinearFail(int keyX, int keyY)
         {
+            WindowStatic.Logger.LogWarn("Texture couldn't have been billineary filtered. Switching to no filtering");
             _filter = FilterMode.NONE;
             return _buffer[keyY][keyX];
         }

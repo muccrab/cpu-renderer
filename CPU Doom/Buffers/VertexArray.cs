@@ -1,5 +1,6 @@
 ﻿namespace CPU_Doom.Buffers
 {
+    // Joins VertexBuffer and ElementBuffer for Renderer
     public class VertexArrayObject
     {
         public ElementBuffer Indices { get; private init; }
