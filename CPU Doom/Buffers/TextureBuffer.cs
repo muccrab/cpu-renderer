@@ -2,19 +2,33 @@
 
 namespace CPU_Doom.Buffers
 {
+    /// <summary>
+    /// Enum for defining wrap mode behaviors (CLAMP, REPEAT, REVERSE).
+    /// </summary>
     public enum WrapMode
     {
         CLAMP, REPEAT, REVERSE
     }
 
+    /// <summary>
+    /// Enum for defining filter mode behaviors (LINEAR, NONE).
+    /// </summary>
     public enum FilterMode
     {
         LINEAR, NONE
     }
 
-    // Fuction class that is used for texture operations
+    /// <summary>
+    /// Helper functions for texture operations like wrapping and filtering.
+    /// </summary>
     internal static class TextureBufferFunc
     {
+        /// <summary>
+        /// Applies the selected wrap mode (CLAMP, REPEAT, or REVERSE) to a given value.
+        /// </summary>
+        /// <param name="wrap">Wrap mode to apply.</param>
+        /// <param name="value">Value to wrap.</param>
+        /// <returns>Wrapped value.</returns>
         public static float ApplyWrap(WrapMode wrap, float value)
         {
             switch (wrap)
@@ -40,6 +54,14 @@ namespace CPU_Doom.Buffers
             else if (value < 0) value = 0;
             return value;
         }
+        /// <summary>
+        /// Tries to apply linear filtering between two values.
+        /// </summary>
+        /// <param name="from">Start value.</param>
+        /// <param name="to">End value.</param>
+        /// <param name="value">Interpolation factor.</param>
+        /// <param name="result">The result of the interpolation.</param>
+        /// <returns>True if filtering succeeded, false otherwise.</returns>
         public static bool TryApplyLinearFiler(dynamic from, dynamic to, float value, out dynamic result)
         {
             try
@@ -54,34 +76,85 @@ namespace CPU_Doom.Buffers
         }
     }
 
-    // 1D Texture Buffer (Wrapper class for FrameBuffer)
+    /// <summary>
+    /// 1D texture buffer for handling texture data with optional wrapping and filtering.
+    /// </summary>
     public class TextureBuffer1d : SizedEnum<byte[]>
     {
+        /// <summary>
+        /// Gets the size of the texture buffer.
+        /// </summary>
         public override int Size => _buffer.Size;
+
+        /// <summary>
+        /// Initializes a new 1D texture buffer using a frame buffer.
+        /// </summary>
+        /// <param name="buffer">The frame buffer to use.</param>
         public TextureBuffer1d(FrameBuffer buffer) 
         {
             _buffer = buffer;
         }
+
+        /// <summary>
+        /// Initializes a new 2D texture buffer using a frame buffer.
+        /// </summary>
+        /// <param name="data">The pixel data of the texture</param>
+        /// <param name="size">The size of the texture</param>
+        /// <param name="type">The pixel type</param>
         public TextureBuffer1d(byte[] data, int size, Types.PIXELTYPE type) : this(new FrameBuffer(data, size, type)) { }
+
+        /// <summary>
+        /// Sets the wrap mode for the texture buffer.
+        /// </summary>
+        /// <param name="wrap">The wrap mode to use.</param>
+        /// <returns>The texture buffer with updated wrap mode.</returns>
         public TextureBuffer1d SetWrapMode(WrapMode wrap)
         {
             _wrap = wrap;
             return this;
         }
+
+        /// <summary>
+        /// Sets the filtering mode for the texture buffer.
+        /// </summary>
+        /// <param name="filter">The filter mode to use.</param>
+        /// <returns>The texture buffer with updated filter mode.</returns>
         public TextureBuffer1d SetFiltering(FilterMode filter)
         {
             _filter = filter;
             return this;
         }
+
+        /// <summary>
+        /// Gets a pixel value based on key.
+        /// </summary>
+        /// <param name="key">The key to fetch the pixel.</param>
+        /// <returns>The raw pixel data.</returns>
         public byte[] this[int key] => Get(key);
+
+        /// <summary>
+        /// Gets a wrapped and filtered pixel value based on key.
+        /// </summary>
+        /// <param name="key">The key to fetch the pixel.</param>
+        /// <returns>The filtered pixel data.</returns>
         public byte[] GetPixel(float key) // Gets Pixel Wrapped and Filtered
         {
             key = TextureBufferFunc.ApplyWrap(_wrap, key);
             key *= _buffer.Size - 1;
             return GetFiltered(key);
         }
+
+        /// <summary>
+        /// Gets a pixel value based on key.
+        /// </summary>
+        /// <param name="key">The key to fetch the pixel.</param>
+        /// <returns>The raw pixel data.</returns>
         public override byte[] Get(int key) => _buffer.Get(key);
 
+        /// <summary>
+        /// Copies the current texture buffer, preserving its settings.
+        /// </summary>
+        /// <returns>A copy of the current texture buffer.</returns>
         public TextureBuffer1d Copy() => new TextureBuffer1d(_buffer.Copy()).SetWrapMode(_wrap).SetFiltering(_filter);
 
         private byte[] GetFiltered(float value)
@@ -116,36 +189,95 @@ namespace CPU_Doom.Buffers
         FilterMode _filter;
     }
 
-    // 2D Texture Buffer
+    /// <summary>
+    /// 2D texture buffer for handling texture data with optional wrapping and filtering.
+    /// </summary>
     public class TextureBuffer2d : SizedEnum<FrameBuffer>
     {
+        /// <summary>
+        /// Gets the size of the 2D texture buffer.
+        /// </summary>
         public override int Size => _buffer.Size;
+
+        /// <summary>
+        /// Initializes a new 2D texture buffer using a frame buffer.
+        /// </summary>
+        /// <param name="buffer">The 2D frame buffer to use.</param>
         public TextureBuffer2d(FrameBuffer2d buffer)
         {
             _buffer = buffer;
         }
+
+        /// <summary>
+        /// Initializes a new 2D texture buffer using a frame buffer.
+        /// </summary>
+        /// <param name="data">The pixel data of the texture</param>
+        /// <param name="width">The width of the texture</param>
+        /// <param name="height">The height of the texture</param>
+        /// <param name="type">The pixel type</param>
         public TextureBuffer2d(byte[] data, int width, int height, Types.PIXELTYPE type) : this(new FrameBuffer2d(data, width, height, type)) { }
+
+        /// <summary>
+        /// Sets the horizontal wrap mode for the texture buffer.
+        /// </summary>
+        /// <param name="wrap">The horizontal wrap mode to use.</param>
+        /// <returns>The texture buffer with updated wrap mode.</returns>
         public TextureBuffer2d SetWrapModeHorizontal(WrapMode wrap)
         {
             _wrapHorizontal = wrap;
             return this;
         }
+
+        /// <summary>
+        /// Sets the vertical wrap mode for the texture buffer.
+        /// </summary>
+        /// <param name="wrap">The vertical wrap mode to use.</param>
+        /// <returns>The texture buffer with updated wrap mode.</returns>
         public TextureBuffer2d SetWrapModeVertical(WrapMode wrap)
         {
             _wrapVertical = wrap;
             return this;
         }
+
+        /// <summary>
+        /// Sets the filtering mode for the texture buffer.
+        /// </summary>
+        /// <param name="filter">The filter mode to use.</param>
+        /// <returns>The texture buffer with updated filter mode.</returns>
         public TextureBuffer2d SetFiltering(FilterMode filter)
         {
             _filter = filter;
             return this;
         }
+
+        /// <summary>
+        /// Gets a Framebuffer with row data of the specified key.
+        /// </summary>
+        /// <param name="key">The key to fetch the Framebufer.</param>
+        /// <returns>The Framebuffer with row data</returns>
         public FrameBuffer this[int key] => Get(key);
 
+        /// <summary>
+        /// Gets a Framebuffer with row data of the specified key.
+        /// </summary>
+        /// <param name="key">The key to fetch the Framebufer.</param>
+        /// <returns>The Framebuffer with row data</returns>
+        public override FrameBuffer Get(int key) => _buffer.Get(key);
+
+        /// <summary>
+        /// Copies the current 2D texture buffer, preserving its settings.
+        /// </summary>
+        /// <returns>A copy of the current 2D texture buffer.</returns>
         public TextureBuffer2d Copy() => new TextureBuffer2d(_buffer.Copy()).SetWrapModeHorizontal(_wrapHorizontal)
                                                                             .SetWrapModeVertical(_wrapVertical)
                                                                             .SetFiltering(_filter);
 
+        /// <summary>
+        /// Gets a wrapped and filtered pixel value based on X and Y coordinates.
+        /// </summary>
+        /// <param name="keyX">The X coordinate.</param>
+        /// <param name="keyY">The Y coordinate.</param>
+        /// <returns>The filtered pixel data.</returns>
         public byte[] GetPixel(float keyX, float keyY) // Get Pixel Wrapped and Filtered
         {
             keyX = TextureBufferFunc.ApplyWrap(_wrapHorizontal,keyX);
@@ -227,7 +359,7 @@ namespace CPU_Doom.Buffers
             _filter = FilterMode.NONE;
             return _buffer[keyY][keyX];
         }
-        public override FrameBuffer Get(int key) => _buffer.Get(key);
+
 
         FrameBuffer2d _buffer;
         WrapMode _wrapHorizontal, _wrapVertical;

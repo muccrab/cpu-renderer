@@ -3,14 +3,37 @@ using System.Text;
 
 namespace CPU_Doom.Shaders
 {
-    // Helps Shader Program link Vertex Shader and Fragment Shader 
+    /// <summary>
+    /// Helps in linking vertex and fragment shaders by resolving and matching input and output fields, as well as uniforms.
+    /// </summary>
     internal class ShaderLinker
     {
+        /// <summary>
+        /// Gets the list of input properties of the vertex shader.
+        /// </summary>
         public List<FieldInfo> VertexInputs => _vertexInputs; // All Input Properties of Vertex Shader
+
+        /// <summary>
+        /// Gets a dictionary of linked variables from vertex shader outputs to fragment shader inputs.
+        /// </summary>
         public Dictionary<string, ShaderVariable> LinkedVariables => _linkedVariables; // Linked Vertex Outputs -> Fragment Inputs
+
+        /// <summary>
+        /// Gets the output property of the fragment shader.
+        /// </summary>
         public FieldInfo FragmentOutput => _fragmentOutput; // Fragment Output Property
+
+        /// <summary>
+        /// Gets a dictionary of shader uniforms.
+        /// </summary>
         public Dictionary<string, ShaderUniform> Uniforms => _uniforms; // Shader Uniforms
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ShaderLinker"/> class and links shaders.
+        /// </summary>
+        /// <param name="vertexType">The type of the vertex shader.</param>
+        /// <param name="fragmentType">The type of the fragment shader.</param>
+        /// <exception cref="ArgumentNullException">Thrown if the fragment shader does not contain an output attribute.</exception>
         public ShaderLinker(Type vertexType, Type fragmentType)
         {
             _vertexType = vertexType;
@@ -165,8 +188,14 @@ namespace CPU_Doom.Shaders
         // Checks if type can be filtered by the shader program
         private static bool SupportsFiltering(Type type) =>
             type.GetMethod("op_Multiply", BindingFlags.Static | BindingFlags.Public, null, new[] { typeof(float), type }, null)?.ReturnType == type &&
-            type.GetMethod("op_Addition", BindingFlags.Static | BindingFlags.Public, null, new[] { type, type }, null)?.ReturnType == type; 
+            type.GetMethod("op_Addition", BindingFlags.Static | BindingFlags.Public, null, new[] { type, type }, null)?.ReturnType == type;
 
+
+        /// <summary>
+        /// Sets the value of a shader uniform.
+        /// </summary>
+        /// <param name="name">The name of the uniform.</param>
+        /// <param name="value">The value to set for the uniform.</param>
         public void SetUniform(string name, object value)
         {
             if (_uniforms.ContainsKey(name))
@@ -181,12 +210,32 @@ namespace CPU_Doom.Shaders
         private FieldInfo _fragmentOutput; // Fragment Output Property
         private Dictionary<string, ShaderUniform> _uniforms = new Dictionary<string, ShaderUniform>(); // Shader Uniforms
 
-        // Class For Linked Shader Variables
+        /// <summary>
+        /// Represents a variable that links vertex shader output fields to fragment shader input fields.
+        /// </summary>
         public class ShaderVariable
         {
+            /// <summary>
+            /// Gets the vertex field info.
+            /// </summary>
             public FieldInfo VertexField { get; private init; }
+
+            /// <summary>
+            /// Gets the fragment field info.
+            /// </summary>
             public FieldInfo FragmentField { get; private init; }
+
+            /// <summary>
+            /// Gets or sets a value indicating whether filtering is enabled for this shader variable.
+            /// </summary>
             public bool FileringEnabled { get; set; }
+
+            /// <summary>
+            /// Initializes a new instance of the <see cref="ShaderVariable"/> class.
+            /// </summary>
+            /// <param name="vertexField">The vertex shader output field.</param>
+            /// <param name="fragmentField">The fragment shader input field.</param>
+            /// <param name="fileringEnabled">A value indicating whether filtering is enabled.</param>
             public ShaderVariable(FieldInfo vertexField, FieldInfo fragmentField, bool fileringEnabled)
             {
                 VertexField = vertexField;
@@ -195,9 +244,23 @@ namespace CPU_Doom.Shaders
             }
         }
 
+        /// <summary>
+        /// Represents a shader uniform that can be set with values.
+        /// </summary>
         public abstract class ShaderUniform
         {
+            /// <summary>
+            /// Sets the value of the shader uniform.
+            /// </summary>
+            /// <param name="value">The value to set for the uniform.</param>
             public abstract void SetUniform(object value);
+
+            /// <summary>
+            /// Links vertex and fragment shader fields to create a shader uniform.
+            /// </summary>
+            /// <param name="vertexField">The vertex shader field info.</param>
+            /// <param name="fragmentField">The fragment shader field info.</param>
+            /// <returns>A <see cref="ShaderUniform"/> instance, or null if linking failed.</returns>
             public static ShaderUniform? LinkUniform(FieldInfo? vertexField, FieldInfo? fragmentField)
             {
                 Type? uniformType = TryGetType(vertexField, fragmentField); // Get's Type from vertexField

@@ -7,16 +7,62 @@ using SFML.Graphics;
 
 namespace CPU_Doom.Shaders
 {
+    /// <summary>
+    /// Abstract base class for shader programs.
+    /// </summary>
     public abstract class ShaderProgram
     {
+        /// <summary>
+        /// Renders a vertex array object to a frame buffer using this shader program.
+        /// </summary>
+        /// <param name="frameBuffer">The frame buffer to which the vertex array is rendered.</param>
+        /// <param name="vertexArray">The vertex array object containing vertices.</param>
+        /// <param name="depthBuffer">Optional depth buffer for depth testing.</param>
         public abstract void Draw(FrameBuffer2d frameBuffer, VertexArrayObject vertexArray, FrameBuffer2d? depthBuffer);
+
+        /// <summary>
+        /// Sets a uniform variable in the shader program.
+        /// </summary>
+        /// <param name="name">The name of the uniform variable.</param>
+        /// <param name="value">The value to set for the uniform variable.</param>
         public abstract void SetUniform(string name, object value);
+
+        /// <summary>
+        /// Binds a 1D texture to the shader program at the specified texture position.
+        /// </summary>
+        /// <param name="texture">The 1D texture to bind.</param>
+        /// <param name="texturePos">The texture position to bind to. Default is -1.</param>
+        /// <returns>The texture position used.</returns>
         public abstract int SetTexture1d(TextureBuffer1d texture, int texturePos = -1);
+
+        /// <summary>
+        /// Binds a 2D texture to the shader program at the specified texture position.
+        /// </summary>
+        /// <param name="texture">The 2D texture to bind.</param>
+        /// <param name="texturePos">The texture position to bind to. Default is -1.</param>
+        /// <returns>The texture position used.</returns>
         public abstract int SetTexture2d(TextureBuffer2d texture, int texturePos = -1);
+
+        /// <summary>
+        /// Retrieves a 1D texture from the shader program at the specified texture position.
+        /// </summary>
+        /// <param name="texturePos">The texture position to retrieve from.</param>
+        /// <returns>The 1D texture at the specified position, or null if not found.</returns>
         public abstract TextureBuffer1d? GetTexture1d(int texturePos);
+
+        /// <summary>
+        /// Retrieves a 2D texture from the shader program at the specified texture position.
+        /// </summary>
+        /// <param name="texturePos">The texture position to retrieve from.</param>
+        /// <returns>The 2D texture at the specified position, or null if not found.</returns>
         public abstract TextureBuffer2d? GetTexture2d(int texturePos);
     }
 
+    /// <summary>
+    /// Generic shader program implementation using specified vertex and fragment shader types.
+    /// </summary>
+    /// <typeparam name="TVER">The type of the vertex shader, must implement <see cref="IVertexShader"/> and have a parameterless constructor.</typeparam>
+    /// <typeparam name="TFRAG">The type of the fragment shader, must implement <see cref="IFragmentShader"/> and have a parameterless constructor.</typeparam>
     public class ShaderProgram<TVER, TFRAG> : ShaderProgram where TVER : IVertexShader, new() where TFRAG : IFragmentShader, new()
     {
         private Type _vertexType, _fragmentType; // types of vertex and fragment shaders
@@ -27,6 +73,10 @@ namespace CPU_Doom.Shaders
         const int _FRAGTHREADS = 1024; // Number of threads fragment shader will work on
         const bool _DEBUGMODE = true; // Debug Constant to run Fragment Shader in one thread
         TFRAG[] _fragShaders = new TFRAG[_FRAGTHREADS]; // array for fragment shader for one specific thread.
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ShaderProgram{TVER, TFRAG}"/> class.
+        /// </summary>
         public ShaderProgram()
         {
             _vertexType = typeof(TVER);
@@ -36,7 +86,12 @@ namespace CPU_Doom.Shaders
             _fragShaders = (from _ in Enumerable.Range(0, _FRAGTHREADS) select new TFRAG()).ToArray();
         }
 
-        // draw vertex array object to framebuffer using shader
+        /// <summary>
+        /// Renders a vertex array object to a frame buffer using this shader program.
+        /// </summary>
+        /// <param name="frameBuffer">The frame buffer to which the vertex array is rendered.</param>
+        /// <param name="vertexArray">The vertex array object containing vertices.</param>
+        /// <param name="depthBuffer">Optional depth buffer for depth testing.</param>
         public override void Draw(FrameBuffer2d frameBuffer, VertexArrayObject vertexArray, FrameBuffer2d? depthBuffer) 
         {
             TVER[] vertices = RunVertex(vertexArray);
@@ -260,10 +315,41 @@ namespace CPU_Doom.Shaders
             else return c;
         }
 
+        /// <summary>
+        /// Sets a uniform variable in the shader program.
+        /// </summary>
+        /// <param name="name">The name of the uniform variable.</param>
+        /// <param name="value">The value to set for the uniform variable.</param>
         public override void SetUniform(string name, object value) => _linker.SetUniform(name, value);
+
+        /// <summary>
+        /// Binds a 1D texture to the shader program at the specified texture position.
+        /// </summary>
+        /// <param name="texture">The 1D texture to bind.</param>
+        /// <param name="texturePos">The texture position to bind to. Default is -1.</param>
+        /// <returns>The texture position used.</returns>
         public override int SetTexture1d(TextureBuffer1d texture, int texturePos = -1) => _textureHandler.SetTexture1d(texture, texturePos);
+
+        /// <summary>
+        /// Binds a 2D texture to the shader program at the specified texture position.
+        /// </summary>
+        /// <param name="texture">The 2D texture to bind.</param>
+        /// <param name="texturePos">The texture position to bind to. Default is -1.</param>
+        /// <returns>The texture position used.</returns>
         public override int SetTexture2d(TextureBuffer2d texture, int texturePos = -1) => _textureHandler.SetTexture2d(texture, texturePos);
+
+        /// <summary>
+        /// Retrieves a 1D texture from the shader program at the specified texture position.
+        /// </summary>
+        /// <param name="texturePos">The texture position to retrieve from.</param>
+        /// <returns>The 1D texture at the specified position, or null if not found.</returns>
         public override TextureBuffer1d? GetTexture1d(int texturePos) => _textureHandler.GetTexture1d(texturePos);
+
+        /// <summary>
+        /// Retrieves a 2D texture from the shader program at the specified texture position.
+        /// </summary>
+        /// <param name="texturePos">The texture position to retrieve from.</param>
+        /// <returns>The 2D texture at the specified position, or null if not found.</returns>
         public override TextureBuffer2d? GetTexture2d(int texturePos) => _textureHandler?.GetTexture2d(texturePos);
     }
 }
