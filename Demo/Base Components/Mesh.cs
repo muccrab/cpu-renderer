@@ -14,7 +14,7 @@ namespace Demo.Base_Components
 
         public override void Start()
         {
-            var vaos = ObjectLoader.LoadVAOsFromObjFile("pyramid.obj");
+            var vaos = ObjectLoader.LoadVAOsFromObjFile(_objectLoc);
             _vao = vaos[0];
             _shader = new ShaderProgram<MoveableVertexShader, TextureFragmentShader>();
         }
@@ -34,6 +34,5 @@ namespace Demo.Base_Components
         private VertexArrayObject? _vao;
         private ShaderProgram? _shader;
         private int _texPos;
-
     }
 }

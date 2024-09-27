@@ -83,7 +83,7 @@ namespace Logger
 
                 lock (_lockObject)
                 {
-                    while (_messageQueue.Count == 0)
+                    while (_messageQueue.Count == 0 && _running)
                     {
                         Monitor.Wait(_lockObject);
                     }

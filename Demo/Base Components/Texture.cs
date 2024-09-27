@@ -9,7 +9,7 @@ namespace Demo.Base_Components
     internal class Texture : ObjectComponent
     {
         [ParserInput("ObjectLocation")]
-        string _textureLoc = "obamna.png";
+        string _textureLoc = "shrek.jpg";
 
         TextureBuffer2d? _texture;
         int _texturePos = -1;

@@ -26,8 +26,17 @@ namespace Demo.Shaders
         [InputAttribute("in_color")]
         public Vector4 inColor; 
 
-        [UniformAttribute("u_time")]
+        [UniformAttribute("u_Time")]
         public static float uTime;
+
+        [UniformAttribute("u_Model")]
+        public static Matrix4 uModel;
+
+        [UniformAttribute("u_View")]
+        public static Matrix4 uView;
+
+        [UniformAttribute("u_Projection")]
+        public static Matrix4 uPerspective;
 
         [OutputAttribute("f_color")]
         public Vector4 outColor;
@@ -43,8 +52,9 @@ namespace Demo.Shaders
         {
             inPosition.W = 1;
             //inPosition.Z = 1;
-            Matrix4 rotation = Matrix4.CreateRotationX(uTime) * Matrix4.CreateRotationY(uTime / 2);
-            Position = inPosition * rotation + new Vector4(0,0,1,0);
+            //Matrix4 rotation = Matrix4.CreateRotationX(uTime) * Matrix4.CreateRotationY(uTime / 2);
+            Matrix4 rotation = Matrix4.Identity;
+            Position = inPosition * rotation * uModel * uView * uPerspective;
             outColor = inColor; //+ new Vector4(uTime > 1 ? uTime - (int)uTime : uTime);
         }
     }

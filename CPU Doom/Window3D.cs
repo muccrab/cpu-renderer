@@ -52,6 +52,12 @@ namespace CPU_Doom
             _depthBuffer = new FrameBuffer2d(_width, _height, PIXELTYPE.FLOAT);
         }
 
+
+        public void Dispose()
+        {
+            WindowStatic.Logger.Stop();
+        }
+
         /// <summary>
         /// Runs the specified action in a loop until the window is closed.
         /// </summary>
@@ -65,6 +71,7 @@ namespace CPU_Doom
                 _window.DispatchEvents();
                 loop.Invoke(frameContext);
             }
+            Dispose();
         }
 
 

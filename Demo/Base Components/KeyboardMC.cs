@@ -36,11 +36,11 @@ namespace Demo.Base_Components
             switch (actionType)
             {
                 case ActionType.PRESS:
-                    if (!_onPress.ContainsKey(key)) _onHold.Add(key, action);
+                    if (!_onPress.ContainsKey(key)) _onPress.Add(key, action);
                     else _onPress[key] += action;
                     break;
                 case ActionType.RELEASE:
-                    if (!_onRelease.ContainsKey(key)) _onHold.Add(key, action);
+                    if (!_onRelease.ContainsKey(key)) _onRelease.Add(key, action);
                     else _onRelease[key] += action;
                     break;
                 case ActionType.HOLD:

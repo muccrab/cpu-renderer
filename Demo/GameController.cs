@@ -8,8 +8,8 @@ namespace Demo
     // Main Controller of the Game Engine
     internal class GameController
     {
-        public const int WIDTH = 700;
-        public const int HEIGHT = 360;
+        public const int WIDTH = 320;
+        public const int HEIGHT = 180;
         const string TITLE = "Game";
 
         public KeyboardManager KeyboardManager => _keyboardManager;
@@ -21,8 +21,11 @@ namespace Demo
             _keyboardManager = new KeyboardManager(_window);
 
             var scene = new GameObject();
-            scene.AddComponent(new Mesh());
-            scene.AddComponent(new Texture());
+
+            var switcherObj = new GameObject();
+            switcherObj.AddComponent(new KeyboardMC());
+            switcherObj.AddComponent(new DemoSwitcher());
+            switcherObj.SetParent(scene);
 
             var cameraObj = new GameObject();
             cameraObj.SetParent(scene);
@@ -39,6 +42,7 @@ namespace Demo
 
         private void Update(IUserFrameContext context)
         {
+            Time.DeltaTime = (float)context.Time.DeltaTime;
             _logic.Update();
             _window.ClearCurrentBuffer(System.Drawing.Color.Green);
             _window.ClearDepthBuffer();
@@ -46,6 +50,7 @@ namespace Demo
             {
                 var property = _renderQueue.Dequeue();
                 _window.BindVertexArray(property.VertexArray);
+                property.Program.SetUniform("u_Time", (float)context.Time.Time);
                 _window.Draw(property.Program);
             }
             _window.DrawFramebuffer();

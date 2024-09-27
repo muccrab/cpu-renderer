@@ -20,9 +20,6 @@ namespace Demo.Shaders
         [InputAttribute("in_UV")]
         public Vector2 inUV;
 
-        [UniformAttribute("u_time")]
-        public static float uTime;
-
         [UniformAttribute("u_Model")]
         public static Matrix4 uModel;
 
@@ -32,18 +29,8 @@ namespace Demo.Shaders
         [UniformAttribute("u_Projection")]
         public static Matrix4 uPerspective;
 
-        [OutputAttribute("f_color")]
-        public Vector4 outColor;
-
         [OutputAttribute("f_texCoord")]
         public Vector2 outTexCoord;
-
-
-
-
-        private static float Rad(float angle) => angle * MathF.PI / 180;
-
-
 
         public void Execute(ShaderFunctions func)
         {

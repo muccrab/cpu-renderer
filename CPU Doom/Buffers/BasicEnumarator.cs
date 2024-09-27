@@ -11,7 +11,7 @@ namespace CPU_Doom.Buffers
         /// <summary>
         /// Gets the size of the enumerable.
         /// </summary>
-        int Size { get; }
+        public int Size { get; }
 
         /// <summary>
         /// Returns an element by its key.

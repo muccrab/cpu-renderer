@@ -51,11 +51,20 @@
 
         public void SetParent(GameObject parent)
         {
+            if (parent._initialized == true && _initialized == false && parent.LogicController is not null)
+            {
+                Initialize(parent.LogicController);
+                Start();
+            }
             _parent?._children.Remove(this);
             parent._children.Add(this);
             _parent = parent;
-
         }
+        public void RemoveParent()
+        {
+            _parent?._children.Remove(this);
+        }
+
         public void AddComponent(ObjectComponent component, string? compID = null)
         {
             if (compID == null) compID = component.ToString() ?? "UnspecifiedComponent";

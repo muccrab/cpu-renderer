@@ -39,6 +39,7 @@ namespace Demo
             _loadedScenes[sceneName] = scene;
         }
 
+
         public void UnloadScene(string sceneName) 
         {
             if (!_loadedScenes.ContainsKey(sceneName))

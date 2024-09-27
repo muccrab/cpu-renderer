@@ -14,8 +14,9 @@ namespace Demo.Shaders
         [UniformAttribute("lightPos")]
         public static Vector4d u_lightPos;
 
-        [UniformAttribute("u_time")]
+        [UniformAttribute("u_Time")]
         public static float uTime;
+
 
         [OutputAttribute("color")]
         public int o_color;
